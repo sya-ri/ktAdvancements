@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version libs.versions.kotlin
+    alias(libs.plugins.kotlin.jvm)
     `maven-publish`
     alias(libs.plugins.paperweight.userdev)
 }
