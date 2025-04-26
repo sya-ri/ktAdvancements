@@ -9,6 +9,10 @@ class KtAdvancements(
 ) {
     private val advancements = mutableMapOf<NamespacedKey, KtAdvancement>()
 
+    fun register(advancement: KtAdvancement) {
+        advancements[advancement.id] = advancement
+    }
+
     fun showAll(player: Player) {
         AdvancementsPacket(
             reset = true,
