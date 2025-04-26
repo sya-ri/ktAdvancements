@@ -1,0 +1,6 @@
+[versions]
+kotlin = "2.1.10"
+spigot = "1.21.6-R0.1-SNAPSHOT"
+
+[libraries]
+spigot-api = { group = "org.spigotmc", name = "spigot-api", version.ref = "spigot" }
