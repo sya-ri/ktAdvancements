@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm") version libs.versions.kotlin
+    `maven-publish`
     alias(libs.plugins.paperweight.userdev)
 }
 
@@ -20,4 +21,13 @@ java {
 
 kotlin {
     jvmToolchain(21)
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            artifact(tasks.reobfJar)
+            artifact(tasks.jar).classifier = "mojang-mapped"
+        }
+    }
 }
