@@ -1,6 +1,5 @@
 package dev.s7a.ktAdvancements
 
-import net.kyori.adventure.text.Component
 import org.bukkit.NamespacedKey
 import org.bukkit.inventory.ItemStack
 
@@ -16,8 +15,8 @@ data class KtAdvancement(
         val x: Float,
         val y: Float,
         val icon: ItemStack,
-        val title: Component,
-        val description: Component,
+        val title: String,
+        val description: String,
         val background: NamespacedKey? = null,
         val frame: Frame = Frame.Task,
         val visibility: Visibility = Visibility.Always,

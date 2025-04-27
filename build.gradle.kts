@@ -1,32 +1,54 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     `maven-publish`
-    alias(libs.plugins.paperweight.userdev)
 }
 
-group = "dev.s7a"
 version = "1.0.0-SNAPSHOT"
 
-repositories {
-    mavenCentral()
+subprojects {
+    apply(plugin = "kotlin")
+}
+
+allprojects {
+    repositories {
+        mavenCentral()
+
+        // Spigot
+        maven(url = "https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
+    }
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
 }
 
 dependencies {
-    paperweight.paperDevBundle("1.21.4-R0.1-SNAPSHOT")
+    compileOnly(libs.spigot.api)
+
+    api(project(":runtime"))
 }
 
-java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
-}
-
-kotlin {
-    jvmToolchain(21)
+val sourceJar by tasks.registering(Jar::class) {
+    archiveClassifier.set("sources")
+    from(sourceSets["main"].allSource)
 }
 
 publishing {
     publications {
         create<MavenPublication>("maven") {
-            artifact(tasks.reobfJar)
+            groupId = "dev.s7a"
+            artifactId = "ktAdvancements"
+            version = rootProject.version.toString()
+            from(components["kotlin"])
             artifact(tasks.jar).classifier = "mojang-mapped"
         }
     }
