@@ -3,7 +3,7 @@
 package dev.s7a.ktAdvancements.runtime.v1_17_1
 
 import dev.s7a.ktAdvancements.KtAdvancement
-import dev.s7a.ktAdvancements.runtime.KtAdvancementRuntimeBase
+import dev.s7a.ktAdvancements.runtime.KtAdvancementRuntime
 import net.minecraft.advancements.Advancement
 import net.minecraft.advancements.AdvancementProgress
 import net.minecraft.advancements.AdvancementRewards
@@ -20,8 +20,8 @@ import org.bukkit.craftbukkit.v1_17_R1.inventory.CraftItemStack
 import org.bukkit.craftbukkit.v1_17_R1.util.CraftChatMessage
 import org.bukkit.entity.Player
 
-class KtAdvancementRuntime : KtAdvancementRuntimeBase {
-    override fun send(
+class KtAdvancementRuntimeImpl : KtAdvancementRuntime {
+    override fun sendPacket(
         player: Player,
         reset: Boolean,
         advancements: Map<KtAdvancement, Int>,

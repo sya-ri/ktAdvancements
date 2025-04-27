@@ -1,17 +1,17 @@
 package dev.s7a.ktAdvancements
 
-import dev.s7a.ktAdvancements.runtime.KtAdvancementRuntimeBase
+import dev.s7a.ktAdvancements.runtime.KtAdvancementRuntime
 import org.bukkit.Bukkit
 import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
 
 class KtAdvancements(
     private val progressStore: KtAdvancementProgressStore,
-    runtime: KtAdvancementRuntimeBase? = null,
+    runtime: KtAdvancementRuntime? = null,
 ) {
     private val advancements = mutableMapOf<NamespacedKey, KtAdvancement>()
 
-    private val runtime: KtAdvancementRuntimeBase
+    private val runtime: KtAdvancementRuntime
 
     init {
         if (runtime != null) {
@@ -20,8 +20,8 @@ class KtAdvancements(
             val version = Bukkit.getBukkitVersion().substringBefore('-')
             try {
                 val name = "v" + version.replace('.', '_')
-                val clazz = Class.forName("${KtAdvancement::class.java.packageName}.runtime.$name.KtAdvancementRuntime")
-                this.runtime = clazz.getConstructor().newInstance() as KtAdvancementRuntimeBase
+                val clazz = Class.forName("${KtAdvancement::class.java.packageName}.runtime.$name.KtAdvancementRuntimeImpl")
+                this.runtime = clazz.getConstructor().newInstance() as KtAdvancementRuntime
             } catch (ex: Exception) {
                 throw RuntimeException("Not found runtime: $version", ex)
             }
@@ -35,7 +35,7 @@ class KtAdvancements(
     fun showAll(player: Player) {
         val progressedAdvancements = advancements.values.associateWith { progressStore.getProgress(player, it) }
 
-        runtime.send(
+        runtime.sendPacket(
             player,
             true,
             progressedAdvancements.filter {
@@ -88,7 +88,7 @@ class KtAdvancements(
         val progress = (lastProgress + step).coerceAtMost(requirement)
         progressStore.setProgress(player, advancement, progress)
         if (advancement.isShow(progressStore, player)) {
-            runtime.send(
+            runtime.sendPacket(
                 player,
                 false,
                 mapOf(advancement to progress),
@@ -125,14 +125,14 @@ class KtAdvancements(
         val progress = (lastProgress - step).coerceAtLeast(0)
         progressStore.setProgress(player, advancement, progress)
         if (advancement.isShow(progressStore, player).not()) {
-            runtime.send(
+            runtime.sendPacket(
                 player,
                 false,
                 mapOf(advancement to progress),
                 emptySet(),
             )
         } else {
-            runtime.send(
+            runtime.sendPacket(
                 player,
                 false,
                 mapOf(),
