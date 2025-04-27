@@ -33,10 +33,29 @@ class KtAdvancements(
     }
 
     fun showAll(player: Player) {
+        val progressedAdvancements = advancements.values.associateWith { progressStore.getProgress(player, it) }
+
         runtime.send(
             player,
             true,
-            advancements.values.associateWith { progressStore.getProgress(player, it) },
+            progressedAdvancements.filter {
+                it.key.isShow(
+                    // Use fetched data
+                    object : KtAdvancementProgressStore {
+                        override fun getProgress(
+                            player: Player,
+                            advancement: KtAdvancement,
+                        ) = progressedAdvancements[advancement] ?: 0
+
+                        override fun setProgress(
+                            player: Player,
+                            advancement: KtAdvancement,
+                            progress: Int,
+                        ) = throw NotImplementedError()
+                    },
+                    player,
+                )
+            },
             emptySet(),
         )
     }
@@ -68,12 +87,14 @@ class KtAdvancements(
         if (requirement <= lastProgress) return false
         val progress = (lastProgress + step).coerceAtMost(requirement)
         progressStore.setProgress(player, advancement, progress)
-        runtime.send(
-            player,
-            false,
-            mapOf(advancement to progress),
-            emptySet(),
-        )
+        if (advancement.isShow(progressStore, player)) {
+            runtime.send(
+                player,
+                false,
+                mapOf(advancement to progress),
+                emptySet(),
+            )
+        }
         return true
     }
 
@@ -103,12 +124,21 @@ class KtAdvancements(
         if (lastProgress <= 0) return false
         val progress = (lastProgress - step).coerceAtLeast(0)
         progressStore.setProgress(player, advancement, progress)
-        runtime.send(
-            player,
-            false,
-            mapOf(advancement to progress),
-            emptySet(),
-        )
+        if (advancement.isShow(progressStore, player).not()) {
+            runtime.send(
+                player,
+                false,
+                mapOf(advancement to progress),
+                emptySet(),
+            )
+        } else {
+            runtime.send(
+                player,
+                false,
+                mapOf(),
+                setOf(advancement.id),
+            )
+        }
         return true
     }
 }
