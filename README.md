@@ -1,0 +1,221 @@
+# ktAdvancements
+
+A lightweight, packet-based Minecraft advancements library for Bukkit/Spigot plugins with customizable runtime and data storage.
+
+## Features
+
+- **📦 Packet-based Implementation**: Lightweight and efficient advancement management
+- **🔌 Bundlable**: Can be included directly in your plugin
+- **🔄 Customizable Runtime**: Support for multiple Minecraft versions and custom implementations
+- **💾 Flexible Data Storage**: Default in-memory store with support for custom storage solutions
+- **🛡️ Type-safe Advancement Creation**: Safe and intuitive API for creating advancements
+- **📊 Progress Tracking**: Detailed progress management with step-based control
+- **👁️ Visibility Control**: Flexible visibility options with custom implementation support
+
+## Installation
+
+This library requires both API and Runtime components. Add the following to your `build.gradle.kts`:
+
+```kotlin
+repositories {
+    maven(url = "https://s01.oss.sonatype.org/content/repositories/snapshots/")
+}
+
+dependencies {
+    implementation("dev.s7a:ktAdvancements:1.0.0-SNAPSHOT")
+    implementation("dev.s7a:ktAdvancements-runtime:1.0.0-SNAPSHOT")
+}
+```
+
+For other runtime options, see the Runtime Options section below.
+
+## Runtime Options
+
+This library provides multiple runtime options to suit different needs. For more information about Mojang-mapped vs Spigot-mapped runtimes, see the [Mojang-mapped vs Spigot-mapped](#mojang-mapped-vs-spigot-mapped) section.
+
+### 1. Multi-Version Runtime (Recommended)
+Use this if you need to support multiple Minecraft versions:
+```kotlin
+// For Spigot servers
+implementation("dev.s7a:ktAdvancements-runtime:1.0.0-SNAPSHOT")
+
+// For Mojang-mapped servers
+implementation("dev.s7a:ktAdvancements-runtime-mojang:1.0.0-SNAPSHOT")
+```
+
+### 2. Version-Specific Runtime
+Use this if you only need to support a specific Minecraft version:
+```kotlin
+// For Spigot servers
+implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT")
+
+// For Mojang-mapped servers
+implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT:mojang-mapped")
+```
+
+### 3. Custom Runtime
+If your target version is not supported, you can create your own runtime:
+1. Add `runtime-api` as a dependency
+2. Implement a class based on `KtAdvancementRuntime`
+3. Pass your custom runtime to `KtAdvancements` constructor:
+```kotlin
+val customRuntime = YourCustomRuntime()
+val ktAdvancements = KtAdvancements(plugin, customRuntime)
+```
+
+## Usage
+
+### Creating an Advancement
+
+```kotlin
+val advancement = KtAdvancement(
+    parent = null, // Optional parent advancement
+    id = NamespacedKey(plugin, "example_advancement"),
+    display = KtAdvancement.Display(
+        x = 0f,
+        y = 0f,
+        icon = Material.DIAMOND.itemStack,
+        title = "Example Advancement",
+        description = "Complete this example advancement",
+        frame = KtAdvancement.Display.Frame.Task
+    ),
+    requirement = 1, // Number of steps required to complete the advancement
+    visibility = KtAdvancement.Visibility.Always
+)
+```
+
+**📊 About Progress Management**
+
+- The `requirement` parameter represents the number of steps needed to complete the advancement
+- Internally, criteria are created as base-36 strings for each step
+- Due to packet size limitations, it's recommended to keep the `requirement` value small
+- While vanilla Minecraft allows custom criteria strings, this library uses a simplified numeric step system for better performance
+
+**👁️ About Visibility**
+
+The library provides several visibility options:
+
+- `Always`: Always visible
+- `HaveProgress`: Visible when player has any progress
+- `Granted`: Visible only when advancement is granted
+- `ParentGranted`: Visible when parent advancement is granted
+- `Any`: Visible when any of the specified conditions are met
+- `All`: Visible when all specified conditions are met
+
+You can also create your own visibility class by implementing `KtAdvancement.Visibility`:
+
+```kotlin
+class CustomVisibility : KtAdvancement.Visibility {
+    override fun isShow(
+        advancement: KtAdvancement,
+        store: KtAdvancementProgressStore,
+        player: Player,
+    ): Boolean {
+        TODO("Your custom visibility logic here")
+    }
+}
+```
+
+### Managing Advancements
+
+```kotlin
+// Initialize KtAdvancements (runtime will be automatically selected based on version)
+val ktAdvancements = KtAdvancements(KtAdvancementProgressStore.InMemory())
+
+// Register advancement
+ktAdvancements.register(advancement)
+
+// Grant advancement to player (complete all steps)
+ktAdvancements.grant(player, advancement)
+
+// Grant specific step of advancement
+ktAdvancements.grant(player, advancement, step = 1)
+
+// Revoke advancement from player (complete all steps)
+ktAdvancements.revoke(player, advancement)
+
+// Revoke specific step of advancement
+ktAdvancements.revoke(player, advancement, step = 1)
+```
+
+**💾 About Data Storage**
+
+The library provides `KtAdvancementProgressStore.InMemory()` as a default in-memory data store. You can create your own data store by implementing `KtAdvancementProgressStore`:
+
+```kotlin
+class CustomStore : KtAdvancementProgressStore {
+    override fun getProgress(
+        player: Player,
+        advancement: KtAdvancement,
+    ): Int {
+        TODO("Get progress from your custom storage")
+    }
+
+    override fun setProgress(
+        player: Player,
+        advancement: KtAdvancement,
+        progress: Int,
+    ) {
+        TODO("Save progress to your custom storage")
+    }
+}
+```
+
+## For Developers
+
+### Project Structure
+
+```mermaid
+graph TD
+    subgraph Core[Core Module]
+        A[ktAdvancements]
+    end
+
+    subgraph API[API Modules]
+        E[ktAdvancements-api]
+        F[ktAdvancements-runtime-api]
+    end
+
+    subgraph Runtime[Runtime Modules]
+        G[ktAdvancements-runtime] --> H[ktAdvancements-runtime-vX_X_X]
+        K[ktAdvancements-runtime-mojang] --> L[ktAdvancements-runtime-vX_X_X<br>mojang-mapped]
+    end
+
+    A --> E
+    A --> F
+    H --> F
+    L --> F
+```
+
+The library is divided into several modules with the following dependencies:
+
+1. **Core Module**: Main functionality
+   - `ktAdvancements`: Handles advancement management
+   - Depends on both `ktAdvancements-api` and `ktAdvancements-runtime-api`
+
+2. **API Modules**: Define interfaces and data structures
+   - `ktAdvancements-api`: Core advancement data structures
+   - `ktAdvancements-runtime-api`: Runtime interface definitions
+
+3. **Runtime Modules**: Version-specific implementations
+   - `ktAdvancements-runtime`: Aggregates all Spigot runtimes
+   - `ktAdvancements-runtime-mojang`: Aggregates all Mojang-mapped runtimes
+   - Each version has its own runtime module (e.g., `ktAdvancements-runtime-vX_X_X`)
+   - Mojang-mapped versions use the `mojang-mapped` classifier
+
+### Mojang-mapped vs Spigot-mapped
+
+As of 1.20.5, Paper ships with a Mojang-mapped runtime instead of re-obfuscating the server to Spigot mappings. Additionally, CraftBukkit classes will no longer be relocated into a versioned package. This requires plugins to be deobfuscated before loading when necessary.
+
+Most of this process is done automatically by paperweight, but there are some important things to know when using server internals (or "NMS") from now on:
+
+- **Default mappings assumption**:
+  - By default, all Spigot/Bukkit plugins will be assumed to be Spigot-mapped if they do not specify their mappings namespace in the manifest
+  - All Paper plugins will be assumed to be Mojang-mapped if they do not specify their mappings namespace in the manifest
+  - Spigot-mapped plugins will need to be deobfuscated on first load, Mojang-mapped plugins will not
+
+For more details, please refer to the [Paper documentation](https://docs.papermc.io/paper/dev/userdev/#1205-and-beyond).
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
