@@ -34,7 +34,7 @@ allprojects {
 dependencies {
     compileOnly(libs.spigot.api)
 
-    api(project(":runtime"))
+    api(project(":runtime-api"))
 }
 
 val sourceJar by tasks.registering(Jar::class) {

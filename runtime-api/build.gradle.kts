@@ -4,6 +4,8 @@ plugins {
 
 dependencies {
     compileOnly(libs.spigot.api)
+
+    api(project(":api"))
 }
 
 val sourceJar by tasks.registering(Jar::class) {
@@ -15,7 +17,7 @@ publishing {
     publications {
         create<MavenPublication>("maven") {
             groupId = "dev.s7a"
-            artifactId = "ktAdvancements-api"
+            artifactId = "ktAdvancements-runtime-api"
             version = rootProject.version.toString()
             from(components["kotlin"])
         }
