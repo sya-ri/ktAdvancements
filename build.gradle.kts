@@ -49,6 +49,7 @@ publishing {
             artifactId = "ktAdvancements"
             version = rootProject.version.toString()
             from(components["kotlin"])
+            artifact(sourceJar.get())
             artifact(tasks.jar).classifier = "mojang-mapped"
         }
     }

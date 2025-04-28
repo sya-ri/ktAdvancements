@@ -1,7 +1,7 @@
 import io.papermc.paperweight.userdev.PaperweightUserDependenciesExtension
 
 plugins {
-    `maven-publish` apply false
+    `maven-publish`
     alias(libs.plugins.paperweight.userdev) apply false
 }
 
@@ -32,6 +32,32 @@ subprojects {
                 artifact(tasks.named("reobfJar"))
                 artifact(sourceJar.get())
                 artifact(tasks.jar).classifier = "mojang-mapped"
+            }
+        }
+    }
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            groupId = "dev.s7a"
+            artifactId = "ktAdvancements-runtime"
+            version = rootProject.version.toString()
+            pom {
+                withXml {
+                    asNode().appendNode("dependencies").apply {
+                        rootProject.subprojects.forEach {
+                            if (it.path.startsWith(":runtime:")) {
+                                appendNode("dependency").apply {
+                                    appendNode("groupId", "dev.s7a")
+                                    appendNode("artifactId", "ktAdvancements-runtime-${it.name}")
+                                    appendNode("version", rootProject.version.toString())
+                                    appendNode("scope", "compile")
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

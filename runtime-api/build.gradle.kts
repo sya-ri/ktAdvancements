@@ -20,6 +20,7 @@ publishing {
             artifactId = "ktAdvancements-runtime-api"
             version = rootProject.version.toString()
             from(components["kotlin"])
+            artifact(sourceJar.get())
         }
     }
 }
