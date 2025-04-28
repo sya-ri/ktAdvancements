@@ -176,8 +176,8 @@ graph TD
     end
 
     subgraph Runtime[Runtime Modules]
-        G[ktAdvancements-runtime] --> H[ktAdvancements-runtime-vX_X_X]
-        K[ktAdvancements-runtime-mojang] --> L[ktAdvancements-runtime-vX_X_X<br>mojang-mapped]
+        G[ktAdvancements-runtime] -->|"bundle all versions"| H[ktAdvancements-runtime-vX_X_X]
+        K[ktAdvancements-runtime-mojang] -->|"bundle all versions"| L[ktAdvancements-runtime-vX_X_X<br>mojang-mapped]
     end
 
     A --> E
@@ -195,8 +195,8 @@ The library is divided into several modules with the following dependencies:
    - `ktAdvancements-api`: Core advancement data structures and runtime interface definitions
 
 3. **Runtime Modules**: Version-specific implementations
-   - `ktAdvancements-runtime`: Aggregates all Spigot runtimes
-   - `ktAdvancements-runtime-mojang`: Aggregates all Mojang-mapped runtimes
+   - `ktAdvancements-runtime`: Aggregates all Spigot runtimes (supports all versions)
+   - `ktAdvancements-runtime-mojang`: Aggregates all Mojang-mapped runtimes (supports all versions)
    - Each version has its own runtime module (e.g., `ktAdvancements-runtime-vX_X_X`)
    - Mojang-mapped versions use the `mojang-mapped` classifier
 
