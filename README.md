@@ -18,7 +18,7 @@ This library requires both API and Runtime components. Add the following to your
 
 ```kotlin
 repositories {
-    maven(url = "https://s01.oss.sonatype.org/content/repositories/snapshots/")
+    mavenLocal()  // Use this after running ./gradlew publishToMavenLocal
 }
 
 dependencies {
