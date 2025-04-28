@@ -173,7 +173,6 @@ graph TD
 
     subgraph API[API Modules]
         E[ktAdvancements-api]
-        F[ktAdvancements-runtime-api]
     end
 
     subgraph Runtime[Runtime Modules]
@@ -182,20 +181,18 @@ graph TD
     end
 
     A --> E
-    A --> F
-    H --> F
-    L --> F
+    H --> E
+    L --> E
 ```
 
 The library is divided into several modules with the following dependencies:
 
 1. **Core Module**: Main functionality
    - `ktAdvancements`: Handles advancement management
-   - Depends on both `ktAdvancements-api` and `ktAdvancements-runtime-api`
+   - Depends on `ktAdvancements-api`
 
 2. **API Modules**: Define interfaces and data structures
-   - `ktAdvancements-api`: Core advancement data structures
-   - `ktAdvancements-runtime-api`: Runtime interface definitions
+   - `ktAdvancements-api`: Core advancement data structures and runtime interface definitions
 
 3. **Runtime Modules**: Version-specific implementations
    - `ktAdvancements-runtime`: Aggregates all Spigot runtimes

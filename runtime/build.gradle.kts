@@ -13,7 +13,7 @@ subprojects {
 
     dependencies {
         implementation(project(":"))
-        implementation(project(":runtime-api"))
+        implementation(project(":api"))
 
         extensions.getByType<PaperweightUserDependenciesExtension>().paperDevBundle("$major.$minor.$patch-R0.1-SNAPSHOT")
     }

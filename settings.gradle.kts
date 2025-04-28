@@ -5,7 +5,6 @@ plugins {
 rootProject.name = "ktAdvancements"
 
 include(":api")
-include(":runtime-api")
 file("./runtime").list().forEach {
     if (it.matches("v1_\\d+_\\d+".toRegex())) {
         include(":runtime:$it")
