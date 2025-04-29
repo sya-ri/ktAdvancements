@@ -62,6 +62,10 @@ class KtAdvancements(
         )
     }
 
+    fun get(id: NamespacedKey) = advancements[id]
+
+    fun getAll() = advancements.values.toList()
+
     sealed interface GrantResult {
         data object NotFound : GrantResult
 
