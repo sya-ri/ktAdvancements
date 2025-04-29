@@ -8,7 +8,7 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 class KtAdvancements(
-    private val progressStore: KtAdvancementProgressStore,
+    private val store: KtAdvancementProgressStore,
     runtime: KtAdvancementRuntime? = null,
 ) {
     private val advancements = mutableMapOf<NamespacedKey, KtAdvancement>()
@@ -36,28 +36,27 @@ class KtAdvancements(
     }
 
     fun showAll(player: Player) {
-        val progressedAdvancements = advancements.values.associateWith { progressStore.getProgress(player, it) }
+        val progressedAdvancements = advancements.values.associateWith { store.getProgress(player, it) }
+        val readOnlyStore =
+            // Use fetched data
+            object : KtAdvancementProgressStore {
+                override fun getProgress(
+                    player: Player,
+                    advancement: KtAdvancement,
+                ) = progressedAdvancements[advancement] ?: 0
+
+                override fun setProgress(
+                    player: Player,
+                    advancement: KtAdvancement,
+                    progress: Int,
+                ) = throw NotImplementedError()
+            }
 
         runtime.sendPacket(
             player,
             true,
             progressedAdvancements.filter {
-                it.key.isShow(
-                    // Use fetched data
-                    object : KtAdvancementProgressStore {
-                        override fun getProgress(
-                            player: Player,
-                            advancement: KtAdvancement,
-                        ) = progressedAdvancements[advancement] ?: 0
-
-                        override fun setProgress(
-                            player: Player,
-                            advancement: KtAdvancement,
-                            progress: Int,
-                        ) = throw NotImplementedError()
-                    },
-                    player,
-                )
+                it.key.isShow(readOnlyStore, player)
             },
             emptySet(),
         )
@@ -86,11 +85,11 @@ class KtAdvancements(
         step: Int = advancement.requirement,
     ): Boolean {
         val requirement = advancement.requirement
-        val lastProgress = progressStore.getProgress(player, advancement)
+        val lastProgress = store.getProgress(player, advancement)
         if (requirement <= lastProgress) return false
         val progress = (lastProgress + step).coerceAtMost(requirement)
-        progressStore.setProgress(player, advancement, progress)
-        if (advancement.isShow(progressStore, player)) {
+        store.setProgress(player, advancement, progress)
+        if (advancement.isShow(store, player)) {
             runtime.sendPacket(
                 player,
                 false,
@@ -123,11 +122,11 @@ class KtAdvancements(
         advancement: KtAdvancement,
         step: Int = advancement.requirement,
     ): Boolean {
-        val lastProgress = progressStore.getProgress(player, advancement)
+        val lastProgress = store.getProgress(player, advancement)
         if (lastProgress <= 0) return false
         val progress = (lastProgress - step).coerceAtLeast(0)
-        progressStore.setProgress(player, advancement, progress)
-        if (advancement.isShow(progressStore, player).not()) {
+        store.setProgress(player, advancement, progress)
+        if (advancement.isShow(store, player).not()) {
             runtime.sendPacket(
                 player,
                 false,
