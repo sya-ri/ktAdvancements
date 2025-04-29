@@ -145,6 +145,9 @@ val ktAdvancements = KtAdvancements(KtAdvancementProgressStore.InMemory())
 // Register advancement
 ktAdvancements.register(advancement)
 
+// Show all advancements to player (call this when player joins the server)
+ktAdvancements.showAll(player)
+
 // Grant advancement to player (complete all steps)
 ktAdvancements.grant(player, advancement)
 
