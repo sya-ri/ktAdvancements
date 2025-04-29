@@ -62,11 +62,24 @@ class KtAdvancements(
         )
     }
 
+    sealed interface GrantResult {
+        data object NotFound : GrantResult
+
+        data object AlreadyGranted : GrantResult
+
+        data class Success(
+            val lastProgress: Int,
+            val progress: Int,
+            val isGranted: Boolean,
+            val isShow: Boolean,
+        ) : GrantResult
+    }
+
     fun grant(
         player: Player,
         id: NamespacedKey,
-    ): Boolean {
-        val advancement = advancements[id] ?: return false
+    ): GrantResult {
+        val advancement = advancements[id] ?: return GrantResult.NotFound
         return grant(player, advancement)
     }
 
@@ -74,8 +87,8 @@ class KtAdvancements(
         player: Player,
         id: NamespacedKey,
         step: Int,
-    ): Boolean {
-        val advancement = advancements[id] ?: return false
+    ): GrantResult {
+        val advancement = advancements[id] ?: return GrantResult.NotFound
         return grant(player, advancement, step)
     }
 
@@ -83,13 +96,14 @@ class KtAdvancements(
         player: Player,
         advancement: KtAdvancement,
         step: Int = advancement.requirement,
-    ): Boolean {
+    ): GrantResult {
         val requirement = advancement.requirement
         val lastProgress = store.getProgress(player, advancement)
-        if (requirement <= lastProgress) return false
+        if (requirement <= lastProgress) return GrantResult.AlreadyGranted
         val progress = (lastProgress + step).coerceAtMost(requirement)
         store.setProgress(player, advancement, progress)
-        if (advancement.isShow(store, player)) {
+        val isShow = advancement.isShow(store, player)
+        if (isShow) {
             runtime.sendPacket(
                 player,
                 false,
@@ -97,14 +111,26 @@ class KtAdvancements(
                 emptySet(),
             )
         }
-        return true
+        return GrantResult.Success(lastProgress, progress, progress == requirement, isShow)
+    }
+
+    sealed interface RevokeResult {
+        data object NotFound : RevokeResult
+
+        data object NoProgress : RevokeResult
+
+        data class Success(
+            val lastProgress: Int,
+            val progress: Int,
+            val isShow: Boolean,
+        ) : RevokeResult
     }
 
     fun revoke(
         player: Player,
         id: NamespacedKey,
-    ): Boolean {
-        val advancement = advancements[id] ?: return false
+    ): RevokeResult {
+        val advancement = advancements[id] ?: return RevokeResult.NotFound
         return revoke(player, advancement)
     }
 
@@ -112,8 +138,8 @@ class KtAdvancements(
         player: Player,
         id: NamespacedKey,
         step: Int,
-    ): Boolean {
-        val advancement = advancements[id] ?: return false
+    ): RevokeResult {
+        val advancement = advancements[id] ?: return RevokeResult.NotFound
         return revoke(player, advancement, step)
     }
 
@@ -121,12 +147,13 @@ class KtAdvancements(
         player: Player,
         advancement: KtAdvancement,
         step: Int = advancement.requirement,
-    ): Boolean {
+    ): RevokeResult {
         val lastProgress = store.getProgress(player, advancement)
-        if (lastProgress <= 0) return false
+        if (lastProgress <= 0) return RevokeResult.NoProgress
         val progress = (lastProgress - step).coerceAtLeast(0)
         store.setProgress(player, advancement, progress)
-        if (advancement.isShow(store, player).not()) {
+        val isShow = advancement.isShow(store, player)
+        if (isShow) {
             runtime.sendPacket(
                 player,
                 false,
@@ -141,6 +168,6 @@ class KtAdvancements(
                 setOf(advancement.id),
             )
         }
-        return true
+        return RevokeResult.Success(lastProgress, progress, isShow)
     }
 }
