@@ -16,8 +16,8 @@ import java.util.logging.Logger
  * @param store Store for saving advancement progress
  * @param runtime Custom runtime (optional)
  */
-class KtAdvancements(
-    private val store: KtAdvancementProgressStore,
+class KtAdvancements<T : KtAdvancementProgressStore>(
+    val store: T,
     runtime: KtAdvancementRuntime? = null,
 ) {
     private val advancements = mutableMapOf<NamespacedKey, KtAdvancement>()
