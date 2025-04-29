@@ -80,7 +80,7 @@ class YourCustomRuntime : KtAdvancementRuntime {
 3. Create an instance of your custom runtime and use it:
 ```kotlin
 val customRuntime = YourCustomRuntime()
-val ktAdvancements = KtAdvancements(plugin, customRuntime)
+val ktAdvancements = KtAdvancements(store, customRuntime)
 ```
 
 ## Usage
@@ -94,7 +94,7 @@ val advancement = KtAdvancement(
     display = KtAdvancement.Display(
         x = 0f,
         y = 0f,
-        icon = Material.DIAMOND.itemStack,
+        icon = ItemStack(Material.DIAMOND),
         title = "Example Advancement",
         description = "Complete this example advancement",
         frame = KtAdvancement.Display.Frame.Task
