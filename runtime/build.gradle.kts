@@ -9,12 +9,12 @@ subprojects {
     apply(plugin = "io.papermc.paperweight.userdev")
     apply(plugin = "maven-publish")
 
-    val (major, minor, patch) = project.name.drop(1).split('_')
+    val name = project.name.drop(1)
 
     dependencies {
         implementation(project(":api"))
 
-        extensions.getByType<PaperweightUserDependenciesExtension>().paperDevBundle("$major.$minor.$patch-R0.1-SNAPSHOT")
+        extensions.getByType<PaperweightUserDependenciesExtension>().paperDevBundle("${name.replace('_', '.')}-R0.1-SNAPSHOT")
     }
 
     val sourceJar by tasks.registering(Jar::class) {
@@ -26,7 +26,7 @@ subprojects {
         publications {
             create<MavenPublication>("maven") {
                 groupId = "dev.s7a"
-                artifactId = "ktAdvancements-runtime-v${major}_${minor}_$patch"
+                artifactId = "ktAdvancements-runtime-v$name"
                 version = rootProject.version.toString()
                 artifact(tasks.named("reobfJar"))
                 artifact(sourceJar.get())
