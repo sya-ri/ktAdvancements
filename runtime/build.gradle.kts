@@ -12,7 +12,6 @@ subprojects {
     val (major, minor, patch) = project.name.drop(1).split('_')
 
     dependencies {
-        implementation(project(":"))
         implementation(project(":api"))
 
         extensions.getByType<PaperweightUserDependenciesExtension>().paperDevBundle("$major.$minor.$patch-R0.1-SNAPSHOT")

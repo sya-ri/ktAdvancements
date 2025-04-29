@@ -14,7 +14,7 @@ A lightweight, packet-based Minecraft advancements library for Bukkit/Spigot plu
 
 ## Installation
 
-This library requires both API and Runtime components. Add the following to your `build.gradle.kts`:
+This library requires Runtime components. Add the following to your `build.gradle.kts`:
 
 ```kotlin
 repositories {
@@ -22,7 +22,6 @@ repositories {
 }
 
 dependencies {
-    implementation("dev.s7a:ktAdvancements:1.0.0-SNAPSHOT")
     implementation("dev.s7a:ktAdvancements-runtime:1.0.0-SNAPSHOT")
 }
 ```
@@ -55,9 +54,29 @@ implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT:mojang-map
 
 ### 3. Custom Runtime
 If your target version is not supported, you can create your own runtime:
-1. Add `runtime-api` as a dependency
-2. Implement a class based on `KtAdvancementRuntime`
-3. Pass your custom runtime to `KtAdvancements` constructor:
+
+1. Add `ktAdvancements-api` as a dependency:
+```kotlin
+dependencies {
+    implementation("dev.s7a:ktAdvancements-api:1.0.0-SNAPSHOT")
+}
+```
+
+2. Implement a class based on `KtAdvancementRuntime`:
+```kotlin
+class YourCustomRuntime : KtAdvancementRuntime {
+    override fun sendPacket(
+        player: Player,
+        reset: Boolean,
+        advancements: Map<KtAdvancement, Int>,
+        removed: Set<NamespacedKey>,
+    ) {
+        TODO("Implement packet sending logic")
+    }
+}
+```
+
+3. Create an instance of your custom runtime and use it:
 ```kotlin
 val customRuntime = YourCustomRuntime()
 val ktAdvancements = KtAdvancements(plugin, customRuntime)
@@ -167,10 +186,6 @@ class CustomStore : KtAdvancementProgressStore {
 
 ```mermaid
 graph TD
-    subgraph Core[Core Module]
-        A[ktAdvancements]
-    end
-
     subgraph API[API Modules]
         E[ktAdvancements-api]
     end
@@ -180,23 +195,18 @@ graph TD
         K[ktAdvancements-runtime-mojang] -->|"bundle all versions"| L[ktAdvancements-runtime-vX_X_X<br>mojang-mapped]
     end
 
-    A --> E
     H --> E
     L --> E
 ```
 
 The library is divided into several modules with the following dependencies:
 
-1. **Core Module**: Main functionality
-   - `ktAdvancements`: Handles advancement management
-   - Depends on `ktAdvancements-api`
-
-2. **API Modules**: Define interfaces and data structures
+1. **API Modules**: Define interfaces and data structures
    - `ktAdvancements-api`: Core advancement data structures and runtime interface definitions
 
-3. **Runtime Modules**: Version-specific implementations
-   - `ktAdvancements-runtime`: Aggregates all Spigot runtimes (supports all versions)
-   - `ktAdvancements-runtime-mojang`: Aggregates all Mojang-mapped runtimes (supports all versions)
+2. **Runtime Modules**: Version-specific implementations
+   - `ktAdvancements-runtime`: Aggregates all Spigot runtimes (bundle all versions)
+   - `ktAdvancements-runtime-mojang`: Aggregates all Mojang-mapped runtimes (bundle all versions)
    - Each version has its own runtime module (e.g., `ktAdvancements-runtime-vX_X_X`)
    - Mojang-mapped versions use the `mojang-mapped` classifier
 
