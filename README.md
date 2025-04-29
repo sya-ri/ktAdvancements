@@ -8,6 +8,8 @@ A lightweight, packet-based Minecraft advancements library for Spigot/Paper plug
 - **🔌 Bundlable**: Can be included directly in your plugin
 - **🔄 Customizable Runtime**: Support for multiple Minecraft versions and custom implementations
 - **💾 Flexible Data Storage**: Default in-memory store with support for custom storage solutions
+  - InMemory
+  - SQLite (with addon: `ktAdvancements-store-sqlite`)
 - **🛡️ Type-safe Advancement Creation**: Safe and intuitive API for creating advancements
 - **📊 Progress Tracking**: Detailed progress management with step-based control
 - **👁️ Visibility Control**: Flexible visibility options with custom implementation support
@@ -104,14 +106,14 @@ val advancement = KtAdvancement(
 )
 ```
 
-**📊 About Progress Management**
+#### 📊 About Progress Management
 
 - The `requirement` parameter represents the number of steps needed to complete the advancement
 - Internally, criteria are created as base-36 strings for each step
 - Due to packet size limitations, it's recommended to keep the `requirement` value small
 - While vanilla Minecraft allows custom criteria strings, this library uses a simplified numeric step system for better performance
 
-**👁️ About Visibility**
+#### 👁️ About Visibility
 
 The library provides several visibility options:
 
@@ -161,9 +163,41 @@ ktAdvancements.revoke(player, advancement)
 ktAdvancements.revoke(player, advancement, step = 1)
 ```
 
-**💾 About Data Storage**
+### Data Storage
 
-The library provides `KtAdvancementProgressStore.InMemory()` as a default in-memory data store. You can create your own data store by implementing `KtAdvancementProgressStore`:
+The library provides multiple storage options for advancement progress:
+
+#### 💾 KtAdvancementProgressStore.InMemory
+
+Default in-memory data store:
+
+```kotlin
+val ktAdvancements = KtAdvancements(KtAdvancementProgressStore.InMemory())
+```
+
+#### 🗄️ KtAdvancementProgressStore.SQLite
+
+Persistent data storage using SQLite:
+
+```kotlin
+// Add dependency to your build.gradle.kts
+dependencies {
+    implementation("dev.s7a:ktAdvancements-store-sqlite:1.0.0-SNAPSHOT")
+
+    // SQLite JDBC driver is bundled with Spigot by default
+    // Install if you need a different version
+    // implementation("org.xerial:sqlite-jdbc:{VERSION}")
+}
+```
+
+```kotlin
+// Initialize with database path
+val ktAdvancements = KtAdvancements(KtAdvancementProgressStore.SQLite("path/to/database.db"))
+```
+
+#### 🔧 Custom Storage
+
+You can create your own data store by implementing `KtAdvancementProgressStore`:
 
 ```kotlin
 class CustomStore : KtAdvancementProgressStore {

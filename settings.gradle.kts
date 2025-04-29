@@ -12,3 +12,4 @@ file("./runtime").list().forEach {
 }
 include(":runtime")
 include(":runtime-mojang")
+include(":store:sqlite")
