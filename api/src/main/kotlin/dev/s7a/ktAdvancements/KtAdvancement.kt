@@ -34,7 +34,6 @@ data class KtAdvancement(
         val background: NamespacedKey? = null,
         val frame: Frame = Frame.Task,
         val showToast: Boolean = true,
-        val announceChat: Boolean = true,
     ) {
         enum class Frame {
             Task,

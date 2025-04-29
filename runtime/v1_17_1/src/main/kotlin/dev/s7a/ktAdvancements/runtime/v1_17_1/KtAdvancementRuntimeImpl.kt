@@ -79,7 +79,7 @@ class KtAdvancementRuntimeImpl : KtAdvancementRuntime {
             display.background?.location(),
             display.frame.type(),
             display.showToast,
-            display.announceChat,
+            false,
             false,
         ).apply {
             setLocation(display.x, display.y)
