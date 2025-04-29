@@ -130,7 +130,7 @@ You can also create your own visibility class by implementing `KtAdvancement.Vis
 class CustomVisibility : KtAdvancement.Visibility {
     override fun isShow(
         advancement: KtAdvancement,
-        store: KtAdvancementProgressStore,
+        store: KtAdvancementStore,
         player: Player,
     ): Boolean {
         TODO("Your custom visibility logic here")
@@ -142,7 +142,7 @@ class CustomVisibility : KtAdvancement.Visibility {
 
 ```kotlin
 // Initialize KtAdvancements (runtime will be automatically selected based on version)
-val ktAdvancements = KtAdvancements(KtAdvancementProgressStore.InMemory())
+val ktAdvancements = KtAdvancements(KtAdvancementStore.InMemory())
 
 // Register advancement
 ktAdvancements.register(advancement)
@@ -167,15 +167,15 @@ ktAdvancements.revoke(player, advancement, step = 1)
 
 The library provides multiple storage options for advancement progress:
 
-#### 💾 KtAdvancementProgressStore.InMemory
+#### 💾 KtAdvancementStore.InMemory
 
 Default in-memory data store:
 
 ```kotlin
-val ktAdvancements = KtAdvancements(KtAdvancementProgressStore.InMemory())
+val ktAdvancements = KtAdvancements(KtAdvancementStore.InMemory())
 ```
 
-#### 🗄️ KtAdvancementProgressStore.SQLite
+#### 🗄️ KtAdvancementStore.SQLite
 
 Persistent data storage using SQLite:
 
@@ -192,15 +192,15 @@ dependencies {
 
 ```kotlin
 // Initialize with database path
-val ktAdvancements = KtAdvancements(KtAdvancementProgressStore.SQLite("path/to/database.db"))
+val ktAdvancements = KtAdvancements(KtAdvancementStore.SQLite("path/to/database.db"))
 ```
 
 #### 🔧 Custom Storage
 
-You can create your own data store by implementing `KtAdvancementProgressStore`:
+You can create your own data store by implementing `KtAdvancementStore`:
 
 ```kotlin
-class CustomStore : KtAdvancementProgressStore {
+class CustomStore : KtAdvancementStore {
     override fun getProgress(
         player: Player,
         advancement: KtAdvancement,

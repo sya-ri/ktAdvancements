@@ -38,7 +38,7 @@ data class KtAdvancement(
      * @return Whether the advancement is granted
      */
     fun isGranted(
-        store: KtAdvancementProgressStore,
+        store: KtAdvancementStore,
         player: Player,
     ) = isGranted(store.getProgress(player, this))
 
@@ -50,7 +50,7 @@ data class KtAdvancement(
      * @return Whether the advancement should be shown
      */
     fun isShow(
-        store: KtAdvancementProgressStore,
+        store: KtAdvancementStore,
         player: Player,
     ) = visibility.isShow(this, store, player)
 
@@ -82,8 +82,10 @@ data class KtAdvancement(
         enum class Frame {
             /** Task frame */
             Task,
+
             /** Challenge frame */
             Challenge,
+
             /** Goal frame */
             Goal,
         }
@@ -103,7 +105,7 @@ data class KtAdvancement(
          */
         fun isShow(
             advancement: KtAdvancement,
-            store: KtAdvancementProgressStore,
+            store: KtAdvancementStore,
             player: Player,
         ): Boolean
 
@@ -111,7 +113,7 @@ data class KtAdvancement(
         data object Always : Visibility {
             override fun isShow(
                 advancement: KtAdvancement,
-                store: KtAdvancementProgressStore,
+                store: KtAdvancementStore,
                 player: Player,
             ) = true
         }
@@ -120,7 +122,7 @@ data class KtAdvancement(
         data object HaveProgress : Visibility {
             override fun isShow(
                 advancement: KtAdvancement,
-                store: KtAdvancementProgressStore,
+                store: KtAdvancementStore,
                 player: Player,
             ) = 0 < store.getProgress(player, advancement)
         }
@@ -129,7 +131,7 @@ data class KtAdvancement(
         data object Granted : Visibility {
             override fun isShow(
                 advancement: KtAdvancement,
-                store: KtAdvancementProgressStore,
+                store: KtAdvancementStore,
                 player: Player,
             ) = advancement.isGranted(store.getProgress(player, advancement))
         }
@@ -138,7 +140,7 @@ data class KtAdvancement(
         data object ParentGranted : Visibility {
             override fun isShow(
                 advancement: KtAdvancement,
-                store: KtAdvancementProgressStore,
+                store: KtAdvancementStore,
                 player: Player,
             ) = if (advancement.parent != null) {
                 advancement.parent.isGranted(store, player)
@@ -157,7 +159,7 @@ data class KtAdvancement(
         ) : Visibility {
             override fun isShow(
                 advancement: KtAdvancement,
-                store: KtAdvancementProgressStore,
+                store: KtAdvancementStore,
                 player: Player,
             ) = visibility.any { it.isShow(advancement, store, player) }
         }
@@ -172,7 +174,7 @@ data class KtAdvancement(
         ) : Visibility {
             override fun isShow(
                 advancement: KtAdvancement,
-                store: KtAdvancementProgressStore,
+                store: KtAdvancementStore,
                 player: Player,
             ) = visibility.all { it.isShow(advancement, store, player) }
         }

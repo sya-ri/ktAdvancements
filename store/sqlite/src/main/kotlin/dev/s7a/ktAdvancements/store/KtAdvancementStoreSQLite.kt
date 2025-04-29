@@ -1,19 +1,37 @@
 package dev.s7a.ktAdvancements.store
 
 import dev.s7a.ktAdvancements.KtAdvancement
-import dev.s7a.ktAdvancements.KtAdvancementProgressStore
+import dev.s7a.ktAdvancements.KtAdvancementStore
 import org.bukkit.entity.Player
 import org.sqlite.SQLiteConfig
 import java.io.File
 import java.nio.file.Path
 import java.sql.DriverManager
 
-class KtAdvancementProgressStoreSQLite(
+/**
+ * SQLite implementation of [KtAdvancementStore]
+ *
+ * @property file SQLite database file
+ * @property config SQLite configuration
+ */
+class KtAdvancementStoreSQLite(
     private val file: File,
     private val config: SQLiteConfig = SQLiteConfig(),
-) : KtAdvancementProgressStore {
+) : KtAdvancementStore {
+    /**
+     * Creates a new SQLite store with the specified path
+     *
+     * @param path Path to the SQLite database file
+     * @param config SQLite configuration
+     */
     constructor(path: String, config: SQLiteConfig = SQLiteConfig()) : this(File(path), config)
 
+    /**
+     * Creates a new SQLite store with the specified path
+     *
+     * @param path Path to the SQLite database file
+     * @param config SQLite configuration
+     */
     constructor(path: Path, config: SQLiteConfig = SQLiteConfig()) : this(path.toFile(), config)
 
     init {
@@ -25,6 +43,11 @@ class KtAdvancementProgressStoreSQLite(
         DriverManager.getConnection("jdbc:sqlite:$file", config.toProperties())
     }
 
+    /**
+     * Initializes the SQLite database
+     *
+     * Creates the necessary tables if they don't exist
+     */
     fun onEnable() {
         connection.createStatement().use { statement ->
             statement.executeUpdate(
@@ -83,6 +106,11 @@ class KtAdvancementProgressStoreSQLite(
             }
     }
 
+    /**
+     * Closes the SQLite database connection
+     *
+     * Should be called when the plugin is disabled
+     */
     fun disable() {
         connection.close()
     }

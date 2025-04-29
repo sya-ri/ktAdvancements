@@ -16,7 +16,7 @@ import java.util.logging.Logger
  * @param store Store for saving advancement progress
  * @param runtime Custom runtime (optional)
  */
-class KtAdvancements<T : KtAdvancementProgressStore>(
+class KtAdvancements<T : KtAdvancementStore>(
     val store: T,
     runtime: KtAdvancementRuntime? = null,
 ) {
@@ -58,7 +58,7 @@ class KtAdvancements<T : KtAdvancementProgressStore>(
         val progressedAdvancements = advancements.values.associateWith { store.getProgress(player, it) }
         val readOnlyStore =
             // Use fetched data
-            object : KtAdvancementProgressStore {
+            object : KtAdvancementStore {
                 override fun getProgress(
                     player: Player,
                     advancement: KtAdvancement,
