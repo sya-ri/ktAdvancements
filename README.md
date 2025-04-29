@@ -1,6 +1,6 @@
 [![](assets/logo.png)](assets/logo.png)
 
-A lightweight, packet-based Minecraft advancements library for Bukkit/Spigot plugins with customizable runtime and data storage.
+A lightweight, packet-based Minecraft advancements library for Spigot/Paper plugins with customizable runtime and data storage.
 
 ## Features
 
@@ -35,20 +35,20 @@ This library provides multiple runtime options to suit different needs. For more
 ### 1. Multi-Version Runtime (Recommended)
 Use this if you need to support multiple Minecraft versions:
 ```kotlin
-// For Spigot servers
+// For Spigot plugins
 implementation("dev.s7a:ktAdvancements-runtime:1.0.0-SNAPSHOT")
 
-// For Mojang-mapped servers
+// For Paper plugins (mojang-mapped)
 implementation("dev.s7a:ktAdvancements-runtime-mojang:1.0.0-SNAPSHOT")
 ```
 
 ### 2. Version-Specific Runtime
 Use this if you only need to support a specific Minecraft version:
 ```kotlin
-// For Spigot servers
+// For Spigot plugins
 implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT")
 
-// For Mojang-mapped servers
+// For Paper plugins (mojang-mapped)
 implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT:mojang-mapped")
 ```
 
