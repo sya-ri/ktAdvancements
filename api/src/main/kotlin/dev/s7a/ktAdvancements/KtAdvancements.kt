@@ -4,6 +4,8 @@ import dev.s7a.ktAdvancements.runtime.KtAdvancementRuntime
 import org.bukkit.Bukkit
 import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
+import java.util.logging.Level
+import java.util.logging.Logger
 
 class KtAdvancements(
     private val progressStore: KtAdvancementProgressStore,
@@ -20,8 +22,9 @@ class KtAdvancements(
             val version = Bukkit.getBukkitVersion().substringBefore('-')
             try {
                 val name = "v" + version.replace('.', '_')
-                val clazz = Class.forName("${KtAdvancement::class.java.packageName}.runtime.$name.KtAdvancementRuntimeImpl")
+                val clazz = Class.forName("${KtAdvancementRuntime::class.java.packageName}.$name.KtAdvancementRuntimeImpl")
                 this.runtime = clazz.getConstructor().newInstance() as KtAdvancementRuntime
+                Logger.getLogger("KtAdvancements").log(Level.INFO, "Use KtAdvancementRuntime: $name")
             } catch (ex: Exception) {
                 throw RuntimeException("Not found runtime: $version", ex)
             }
