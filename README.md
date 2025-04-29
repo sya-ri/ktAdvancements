@@ -14,7 +14,7 @@ A lightweight, packet-based Minecraft advancements library for Spigot/Paper plug
 
 ## Installation
 
-This library requires Runtime components. Add the following to your `build.gradle.kts`:
+This library requires API and Runtime components. Add the following to your `build.gradle.kts`:
 
 ```kotlin
 repositories {
@@ -22,6 +22,7 @@ repositories {
 }
 
 dependencies {
+    implementation("dev.s7a:ktAdvancements-api:1.0.0-SNAPSHOT")
     implementation("dev.s7a:ktAdvancements-runtime:1.0.0-SNAPSHOT")
 }
 ```
