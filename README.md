@@ -211,7 +211,7 @@ Persistent data storage using MySQL:
 // Add dependency to your build.gradle.kts
 dependencies {
     implementation("dev.s7a:ktAdvancements-store-mysql:1.0.0-SNAPSHOT")
-    implementation("mysql:mysql-connector-java:8.0.33")
+    implementation("com.mysql:mysql-connector-j:{VERSION}")
 }
 ```
 
