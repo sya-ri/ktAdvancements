@@ -1,4 +1,5 @@
 import io.papermc.paperweight.userdev.PaperweightUserDependenciesExtension
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     `maven-publish`
@@ -10,6 +11,24 @@ subprojects {
     apply(plugin = "maven-publish")
 
     val name = project.name.drop(1)
+
+    if ("1_20_5" <= name) {
+        java {
+            sourceCompatibility = JavaVersion.VERSION_21
+            targetCompatibility = JavaVersion.VERSION_21
+        }
+
+        kotlin {
+            compilerOptions {
+                jvmTarget.set(JvmTarget.JVM_21)
+            }
+        }
+    }
+
+    repositories {
+        // Paper
+        maven(url = "https://repo.papermc.io/repository/maven-public/")
+    }
 
     dependencies {
         implementation(project(":api"))

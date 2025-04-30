@@ -6,7 +6,7 @@ rootProject.name = "ktAdvancements"
 
 include(":api")
 file("./runtime").list().forEach {
-    if (it.matches("v1_\\d+_\\d+".toRegex())) {
+    if (it.matches("v1_\\d+(_\\d+)?".toRegex())) {
         include(":runtime:$it")
     }
 }
