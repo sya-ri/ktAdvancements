@@ -6,12 +6,14 @@ plugins {
 
 version = "1.0.0-SNAPSHOT"
 
-subprojects {
-    apply(plugin = "kotlin")
-
+allprojects {
     repositories {
         mavenCentral()
     }
+}
+
+subprojects {
+    apply(plugin = "kotlin")
 
     java {
         sourceCompatibility = JavaVersion.VERSION_17
