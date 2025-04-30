@@ -10,6 +10,7 @@ A lightweight, packet-based Minecraft advancements library for Spigot/Paper plug
 - **💾 Flexible Data Storage**: Support for custom storage solutions
   - [InMemory](#-ktadvancementstoreinmemory): Default in-memory storage
   - [SQLite](#-ktadvancementstoresqlite): Persistent storage with SQLite (requires `ktAdvancements-store-sqlite` addon)
+  - [MySQL](#-ktadvancementstoremysql): Persistent storage with MySQL (requires `ktAdvancements-store-mysql` addon)
   - [Custom Implementation](#-custom-storage): Create your own storage solution
 - **🛡️ Type-safe Advancement Creation**: Safe and intuitive API for creating advancements
 - **📊 Progress Tracking**: Detailed progress management with step-based control
@@ -194,6 +195,49 @@ dependencies {
 ```kotlin
 // Initialize with database path
 val ktAdvancements = KtAdvancements(KtAdvancementStore.SQLite("path/to/database.db"))
+
+// Create a table
+ktAdvancements.store.onEnable()
+
+// Close connections
+ktAdvancements.store.onDisable()
+```
+
+#### 🗄️ KtAdvancementStore.MySQL
+
+Persistent data storage using MySQL:
+
+```kotlin
+// Add dependency to your build.gradle.kts
+dependencies {
+    implementation("dev.s7a:ktAdvancements-store-mysql:1.0.0-SNAPSHOT")
+    implementation("mysql:mysql-connector-java:8.0.33")
+}
+```
+
+```kotlin
+// Initialize with MySQL connection details
+val ktAdvancements = KtAdvancements(
+    KtAdvancementStore.MySQL(
+        host = "localhost",
+        port = 3306,
+        database = "minecraft",
+        username = "root",
+        password = "password",
+        tableName = "advancement_progress", // optional
+        options = mapOf( // optional
+            "useSSL" to "false",
+            "serverTimezone" to "UTC",
+            "characterEncoding" to "utf8mb4"
+        )
+    )
+)
+
+// Create a table
+ktAdvancements.store.onEnable()
+
+// Close connections
+ktAdvancements.store.onDisable()
 ```
 
 #### 🔧 Custom Storage
@@ -234,6 +278,11 @@ graph TD
         K[ktAdvancements-runtime-mojang] -->|"bundle all versions"| L[ktAdvancements-runtime-vX_X_X<br>mojang-mapped]
     end
 
+    subgraph Store[Store Modules]
+        S[ktAdvancements-store-sqlite] --> E
+        M[ktAdvancements-store-mysql] --> E
+    end
+
     H --> E
     L --> E
 ```
@@ -248,6 +297,10 @@ The library is divided into several modules with the following dependencies:
    - `ktAdvancements-runtime-mojang`: Aggregates all Mojang-mapped runtimes (bundle all versions)
    - Each version has its own runtime module (e.g., `ktAdvancements-runtime-vX_X_X`)
    - Mojang-mapped versions use the `mojang-mapped` classifier
+
+3. **Store Modules**: Data storage implementations
+   - `ktAdvancements-store-sqlite`: SQLite-based persistent storage
+   - `ktAdvancements-store-mysql`: MySQL-based persistent storage
 
 ### Mojang-mapped vs Spigot-mapped
 

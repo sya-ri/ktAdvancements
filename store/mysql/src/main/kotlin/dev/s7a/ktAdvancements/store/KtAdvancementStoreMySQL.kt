@@ -3,48 +3,47 @@ package dev.s7a.ktAdvancements.store
 import dev.s7a.ktAdvancements.KtAdvancement
 import dev.s7a.ktAdvancements.KtAdvancementStore
 import org.bukkit.entity.Player
-import org.sqlite.SQLiteConfig
-import java.io.File
-import java.nio.file.Path
 import java.sql.DriverManager
 
 /**
- * SQLite implementation of [KtAdvancementStore]
+ * MySQL implementation of [KtAdvancementStore]
  *
- * @property file SQLite database file
- * @property config SQLite configuration
+ * @property host MySQL server host
+ * @property port MySQL server port
+ * @property database Database name
+ * @property username Database username
+ * @property password Database password
+ * @property tableName Table name to store advancement progress
+ * @property options Additional connection options
  */
-class KtAdvancementStoreSQLite(
-    private val file: File,
-    private val config: SQLiteConfig = SQLiteConfig(),
+class KtAdvancementStoreMySQL(
+    private val host: String,
+    private val port: Int,
+    private val database: String,
+    private val username: String,
+    private val password: String,
+    private val tableName: String = "advancement_progress",
+    private val options: Map<String, String> = emptyMap(),
 ) : KtAdvancementStore {
-    /**
-     * Creates a new SQLite store with the specified path
-     *
-     * @param path Path to the SQLite database file
-     * @param config SQLite configuration
-     */
-    constructor(path: String, config: SQLiteConfig = SQLiteConfig()) : this(File(path), config)
-
-    /**
-     * Creates a new SQLite store with the specified path
-     *
-     * @param path Path to the SQLite database file
-     * @param config SQLite configuration
-     */
-    constructor(path: Path, config: SQLiteConfig = SQLiteConfig()) : this(path.toFile(), config)
-
     init {
         // Check driver
-        Class.forName("org.sqlite.JDBC")
+        Class.forName("com.mysql.cj.jdbc.Driver")
     }
 
     private val connection by lazy {
-        DriverManager.getConnection("jdbc:sqlite:$file", config.toProperties())
+        val url =
+            buildString {
+                append("jdbc:mysql://$host:$port/$database")
+                if (options.isNotEmpty()) {
+                    append("?")
+                    append(options.entries.joinToString("&") { "${it.key}=${it.value}" })
+                }
+            }
+        DriverManager.getConnection(url, username, password)
     }
 
     /**
-     * Initializes the SQLite database
+     * Initializes the MySQL database
      *
      * Creates the necessary tables if they don't exist
      */
@@ -52,12 +51,12 @@ class KtAdvancementStoreSQLite(
         connection.createStatement().use { statement ->
             statement.executeUpdate(
                 """
-                CREATE TABLE IF NOT EXISTS advancement_progress (
-                    advancementId TEXT NOT NULL,
-                    playerUniqueId TEXT NOT NULL,
-                    progress INTEGER NOT NULL,
-                    PRIMARY KEY (advancementId, playerUniqueId)
-                );
+                CREATE TABLE IF NOT EXISTS `$tableName` (
+                    `advancementId` VARCHAR(255) NOT NULL,
+                    `playerUniqueId` VARCHAR(36) NOT NULL,
+                    `progress` INT NOT NULL,
+                    PRIMARY KEY (`advancementId`, `playerUniqueId`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
                 """.trimIndent(),
             )
         }
@@ -70,7 +69,7 @@ class KtAdvancementStoreSQLite(
         connection
             .prepareStatement(
                 """
-                SELECT progress FROM advancement_progress WHERE advancementId = ? AND playerUniqueId = ?
+                SELECT `progress` FROM `$tableName` WHERE `advancementId` = ? AND `playerUniqueId` = ?
                 """.trimIndent(),
             ).use { statement ->
                 statement.setString(1, advancement.id.toString())
@@ -93,10 +92,9 @@ class KtAdvancementStoreSQLite(
         connection
             .prepareStatement(
                 """
-                INSERT INTO advancement_progress (advancementId, playerUniqueId, progress)
+                INSERT INTO `$tableName` (`advancementId`, `playerUniqueId`, `progress`)
                 VALUES (?, ?, ?)
-                ON CONFLICT(advancementId, playerUniqueId)
-                DO UPDATE SET progress = excluded.progress
+                ON DUPLICATE KEY UPDATE `progress` = VALUES(`progress`)
                 """.trimIndent(),
             ).use { stmt ->
                 stmt.setString(1, advancement.id.toString())
@@ -107,7 +105,7 @@ class KtAdvancementStoreSQLite(
     }
 
     /**
-     * Closes the SQLite database connection
+     * Closes the MySQL database connection
      *
      * Should be called when the plugin is disabled
      */
