@@ -181,6 +181,8 @@ val ktAdvancements = KtAdvancements(KtAdvancementStore.InMemory())
 
 Persistent data storage using SQLite:
 
+[![SQLite JDBC](https://img.shields.io/maven-central/v/org.xerial/sqlite-jdbc?label=SQLite%20JDBC)](https://central.sonatype.com/artifact/org.xerial/sqlite-jdbc)
+
 ```kotlin
 // Add dependency to your build.gradle.kts
 dependencies {
@@ -206,6 +208,8 @@ ktAdvancements.store.onDisable()
 #### 🗄️ KtAdvancementStore.MySQL
 
 Persistent data storage using MySQL:
+
+[![MySQL Connector/J](https://img.shields.io/maven-central/v/com.mysql/mysql-connector-j?label=MySQL%20Connector%2FJ)](https://central.sonatype.com/artifact/com.mysql/mysql-connector-j)
 
 ```kotlin
 // Add dependency to your build.gradle.kts
