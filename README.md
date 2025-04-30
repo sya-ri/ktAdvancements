@@ -9,8 +9,8 @@ A lightweight, packet-based Minecraft advancements library for Spigot/Paper plug
 - **🔄 Customizable Runtime**: Support for multiple Minecraft versions and custom implementations
 - **💾 Flexible Data Storage**: Support for custom storage solutions
   - [InMemory](#-ktadvancementstoreinmemory): Default in-memory storage
-  - [SQLite](#-ktadvancementstoresqlite): Persistent storage with SQLite (requires `ktAdvancements-store-sqlite` addon)
-  - [MySQL](#-ktadvancementstoremysql): Persistent storage with MySQL (requires `ktAdvancements-store-mysql` addon)
+  - [SQLite](#%EF%B8%8F-ktadvancementstoresqlite): Persistent storage with SQLite (requires `ktAdvancements-store-sqlite` addon)
+  - [MySQL](#%EF%B8%8F-ktadvancementstoremysql): Persistent storage with MySQL (requires `ktAdvancements-store-mysql` addon)
   - [Custom Implementation](#-custom-storage): Create your own storage solution
 - **🛡️ Type-safe Advancement Creation**: Safe and intuitive API for creating advancements
 - **📊 Progress Tracking**: Detailed progress management with step-based control
