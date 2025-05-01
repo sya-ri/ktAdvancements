@@ -262,7 +262,8 @@ class KtAdvancements<T : KtAdvancementStore>(
     inner class Transaction(
         private val player: Player,
     ) {
-        private val progress = getAll(player).toMutableMap()
+        private val lastProgress = getAll(player)
+        private val progress = lastProgress.toMutableMap()
 
         /**
          * Grants an advancement by ID
@@ -384,8 +385,9 @@ class KtAdvancements<T : KtAdvancementStore>(
          * Processes all updates and sends them to the player
          */
         internal fun process() {
-            store.updateProgress(player, progress)
-            sendPacket(player, false, progress)
+            val diff = progress.filter { it.value != lastProgress[it.key] }
+            store.updateProgress(player, diff)
+            sendPacket(player, false, diff)
         }
     }
 }
