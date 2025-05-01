@@ -239,13 +239,7 @@ class KtAdvancements<T : KtAdvancementStore>(
 
                 override fun getProgressAll(player: Player) = advancements.mapKeys { it.key.id }
 
-                override fun setProgress(
-                    player: Player,
-                    advancement: KtAdvancement,
-                    progress: Int,
-                ) = throw NotImplementedError()
-
-                override fun setProgressAll(
+                override fun updateProgress(
                     player: Player,
                     progress: Map<KtAdvancement, Int>,
                 ) = throw NotImplementedError()

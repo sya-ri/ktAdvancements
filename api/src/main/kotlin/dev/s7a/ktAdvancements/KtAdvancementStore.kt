@@ -32,25 +32,15 @@ interface KtAdvancementStore {
     fun getProgressAll(player: Player): Map<NamespacedKey, Int>
 
     /**
-     * Sets the progress of an advancement
+     * Updates progress for specified advancements
      *
-     * @param player Player to set progress for
-     * @param advancement Advancement to set progress for
-     * @param progress Progress to set (0 to revoke all progress)
-     */
-    fun setProgress(
-        player: Player,
-        advancement: KtAdvancement,
-        progress: Int,
-    )
-
-    /**
-     * Sets progress for multiple advancements
+     * This method updates only the progress of the specified advancements,
+     * leaving other advancements' progress unchanged.
      *
-     * @param player Player to set progress for
+     * @param player Player to update progress for
      * @param progress Map of advancement to progress
      */
-    fun setProgressAll(
+    fun updateProgress(
         player: Player,
         progress: Map<KtAdvancement, Int>,
     )
@@ -74,23 +64,11 @@ interface KtAdvancementStore {
 
         override fun getProgressAll(player: Player) = list[player.uniqueId].orEmpty()
 
-        override fun setProgress(
-            player: Player,
-            advancement: KtAdvancement,
-            progress: Int,
-        ) {
-            val map = list.getOrPut(player.uniqueId, ::mutableMapOf)
-            map[advancement.id] = progress
-        }
-
-        override fun setProgressAll(
+        override fun updateProgress(
             player: Player,
             progress: Map<KtAdvancement, Int>,
         ) {
-            val map = list.getOrPut(player.uniqueId, ::mutableMapOf)
-            progress.forEach { (advancement, value) ->
-                map[advancement.id] = value
-            }
+            list.getOrPut(player.uniqueId, ::mutableMapOf).putAll(progress.mapKeys { it.key.id })
         }
     }
 }

@@ -117,30 +117,7 @@ class KtAdvancementStoreSQLite(
         }
     }
 
-    override fun setProgress(
-        player: Player,
-        advancement: KtAdvancement,
-        progress: Int,
-    ) {
-        getConnection().use { connection ->
-            connection
-                .prepareStatement(
-                    """
-                    INSERT INTO advancement_progress (advancementId, playerUniqueId, progress)
-                    VALUES (?, ?, ?)
-                    ON CONFLICT(advancementId, playerUniqueId)
-                    DO UPDATE SET progress = excluded.progress
-                    """.trimIndent(),
-                ).use { statement ->
-                    statement.setString(1, advancement.id.toString())
-                    statement.setString(2, player.uniqueId.toString())
-                    statement.setInt(3, progress)
-                    statement.executeUpdate()
-                }
-        }
-    }
-
-    override fun setProgressAll(
+    override fun updateProgress(
         player: Player,
         progress: Map<KtAdvancement, Int>,
     ) {
