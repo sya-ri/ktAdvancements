@@ -50,6 +50,21 @@ class KtAdvancements<T : KtAdvancementStore>(
     }
 
     /**
+     * Gets an advancement by ID
+     *
+     * @param id Advancement ID
+     * @return Advancement (null if not found)
+     */
+    fun get(id: NamespacedKey) = advancements[id]
+
+    /**
+     * Gets all advancements
+     *
+     * @return List of advancements
+     */
+    fun getAll() = advancements.values.toList()
+
+    /**
      * Shows all advancements to a player
      *
      * @param player Player to show advancements to
@@ -80,21 +95,6 @@ class KtAdvancements<T : KtAdvancementStore>(
             emptySet(),
         )
     }
-
-    /**
-     * Gets an advancement by ID
-     *
-     * @param id Advancement ID
-     * @return Advancement (null if not found)
-     */
-    fun get(id: NamespacedKey) = advancements[id]
-
-    /**
-     * Gets all advancements
-     *
-     * @return List of advancements
-     */
-    fun getAll() = advancements.values.toList()
 
     /**
      * Result of granting an advancement
