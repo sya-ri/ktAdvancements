@@ -2,8 +2,12 @@ package dev.s7a.ktAdvancements.store
 
 import dev.s7a.ktAdvancements.KtAdvancement
 import dev.s7a.ktAdvancements.KtAdvancementStore
+import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
+import java.sql.Connection
 import java.sql.DriverManager
+import java.util.logging.Logger
+import kotlin.use
 
 /**
  * MySQL implementation of [KtAdvancementStore]
@@ -25,40 +29,45 @@ class KtAdvancementStoreMySQL(
     private val tableName: String = "advancement_progress",
     private val options: Map<String, String> = emptyMap(),
 ) : KtAdvancementStore {
+    private val logger = Logger.getLogger("KtAdvancementStoreMySQL")
+
     init {
         // Check driver
         Class.forName("com.mysql.cj.jdbc.Driver")
     }
 
-    private val connection by lazy {
-        val url =
+    private fun getConnection() =
+        DriverManager.getConnection(
             buildString {
                 append("jdbc:mysql://$host:$port/$database")
                 if (options.isNotEmpty()) {
                     append("?")
                     append(options.entries.joinToString("&") { "${it.key}=${it.value}" })
                 }
-            }
-        DriverManager.getConnection(url, username, password)
-    }
+            },
+            username,
+            password,
+        )
 
     /**
      * Initializes the MySQL database
      *
      * Creates the necessary tables if they don't exist
      */
-    fun onEnable() {
-        connection.createStatement().use { statement ->
-            statement.executeUpdate(
-                """
-                CREATE TABLE IF NOT EXISTS `$tableName` (
-                    `advancementId` VARCHAR(255) NOT NULL,
-                    `playerUniqueId` VARCHAR(36) NOT NULL,
-                    `progress` INT NOT NULL,
-                    PRIMARY KEY (`advancementId`, `playerUniqueId`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-                """.trimIndent(),
-            )
+    fun setup() {
+        getConnection().use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate(
+                    """
+                    CREATE TABLE IF NOT EXISTS `$tableName` (
+                        `advancementId` VARCHAR(255) NOT NULL,
+                        `playerUniqueId` VARCHAR(36) NOT NULL,
+                        `progress` INT NOT NULL,
+                        PRIMARY KEY (`advancementId`, `playerUniqueId`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                    """.trimIndent(),
+                )
+            }
         }
     }
 
@@ -66,22 +75,49 @@ class KtAdvancementStoreMySQL(
         player: Player,
         advancement: KtAdvancement,
     ): Int {
-        connection
-            .prepareStatement(
-                """
-                SELECT `progress` FROM `$tableName` WHERE `advancementId` = ? AND `playerUniqueId` = ?
-                """.trimIndent(),
-            ).use { statement ->
-                statement.setString(1, advancement.id.toString())
-                statement.setString(2, player.uniqueId.toString())
-                statement.executeQuery().use { result ->
-                    return if (result.next()) {
-                        result.getInt("progress")
-                    } else {
-                        0
+        getConnection().use { connection ->
+            connection
+                .prepareStatement(
+                    """
+                    SELECT `progress` FROM `$tableName` WHERE `advancementId` = ? AND `playerUniqueId` = ?
+                    """.trimIndent(),
+                ).use { statement ->
+                    statement.setString(1, advancement.id.toString())
+                    statement.setString(2, player.uniqueId.toString())
+                    statement.executeQuery().use { result ->
+                        return if (result.next()) {
+                            result.getInt("progress")
+                        } else {
+                            0
+                        }
                     }
                 }
-            }
+        }
+    }
+
+    override fun getProgressAll(player: Player): Map<NamespacedKey, Int> {
+        getConnection().use { connection ->
+            connection
+                .prepareStatement(
+                    """
+                    SELECT `advancementId`, `progress` FROM `$tableName` WHERE `playerUniqueId` = ?
+                    """.trimIndent(),
+                ).use { statement ->
+                    statement.setString(1, player.uniqueId.toString())
+                    statement.executeQuery().use { result ->
+                        return buildMap {
+                            while (result.next()) {
+                                val advancementId = NamespacedKey.fromString(result.getString("advancementId"))
+                                if (advancementId != null) {
+                                    put(advancementId, result.getInt("progress"))
+                                } else {
+                                    logger.warning("Invalid advancementId: ${result.getString("advancementId")}")
+                                }
+                            }
+                        }
+                    }
+                }
+        }
     }
 
     override fun setProgress(
@@ -89,27 +125,58 @@ class KtAdvancementStoreMySQL(
         advancement: KtAdvancement,
         progress: Int,
     ) {
-        connection
-            .prepareStatement(
-                """
-                INSERT INTO `$tableName` (`advancementId`, `playerUniqueId`, `progress`)
-                VALUES (?, ?, ?)
-                ON DUPLICATE KEY UPDATE `progress` = VALUES(`progress`)
-                """.trimIndent(),
-            ).use { stmt ->
-                stmt.setString(1, advancement.id.toString())
-                stmt.setString(2, player.uniqueId.toString())
-                stmt.setInt(3, progress)
-                stmt.executeUpdate()
-            }
+        getConnection().use { connection ->
+            connection
+                .prepareStatement(
+                    """
+                    INSERT INTO `$tableName` (`advancementId`, `playerUniqueId`, `progress`)
+                    VALUES (?, ?, ?)
+                    ON DUPLICATE KEY UPDATE `progress` = VALUES(`progress`)
+                    """.trimIndent(),
+                ).use { statement ->
+                    statement.setString(1, advancement.id.toString())
+                    statement.setString(2, player.uniqueId.toString())
+                    statement.setInt(3, progress)
+                    statement.executeUpdate()
+                }
+        }
     }
 
-    /**
-     * Closes the MySQL database connection
-     *
-     * Should be called when the plugin is disabled
-     */
-    fun onDisable() {
-        connection.close()
+    override fun setProgressAll(
+        player: Player,
+        progress: Map<KtAdvancement, Int>,
+    ) {
+        if (progress.isEmpty()) return
+        getConnection().useTransaction { connection ->
+            connection
+                .prepareStatement(
+                    """
+                    INSERT INTO `$tableName` (`advancementId`, `playerUniqueId`, `progress`)
+                    VALUES (?, ?, ?)
+                    ON DUPLICATE KEY UPDATE `progress` = VALUES(`progress`)
+                    """.trimIndent(),
+                ).use { statement ->
+                    progress.forEach { (advancement, value) ->
+                        statement.setString(1, advancement.id.toString())
+                        statement.setString(2, player.uniqueId.toString())
+                        statement.setInt(3, value)
+                        statement.addBatch()
+                    }
+                    statement.executeBatch()
+                }
+        }
     }
+
+    private inline fun <R> Connection.useTransaction(block: (connection: Connection) -> R) =
+        use { connection ->
+            connection.autoCommit = false
+            try {
+                return@use block(connection).apply {
+                    connection.commit()
+                }
+            } catch (e: Exception) {
+                connection.rollback()
+                throw e
+            }
+        }
 }

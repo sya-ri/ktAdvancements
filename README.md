@@ -223,10 +223,7 @@ dependencies {
 val ktAdvancements = KtAdvancements(KtAdvancementStore.SQLite("path/to/database.db"))
 
 // Create a table
-ktAdvancements.store.onEnable()
-
-// Close connections
-ktAdvancements.store.onDisable()
+ktAdvancements.store.setup()
 ```
 
 #### 🗄️ KtAdvancementStore.MySQL
@@ -262,10 +259,7 @@ val ktAdvancements = KtAdvancements(
 )
 
 // Create a table
-ktAdvancements.store.onEnable()
-
-// Close connections
-ktAdvancements.store.onDisable()
+ktAdvancements.store.setup()
 ```
 
 #### 🔧 Custom Storage

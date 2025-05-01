@@ -70,28 +70,35 @@ class KtAdvancements<T : KtAdvancementStore>(
      * @param player Player to show advancements to
      */
     fun showAll(player: Player) {
-        val progressedAdvancements = advancements.values.associateWith { store.getProgress(player, it) }
+        val progress = store.getProgressAll(player)
         val readOnlyStore =
             // Use fetched data
             object : KtAdvancementStore {
                 override fun getProgress(
                     player: Player,
                     advancement: KtAdvancement,
-                ) = progressedAdvancements[advancement] ?: 0
+                ) = progress[advancement.id] ?: 0
+
+                override fun getProgressAll(player: Player) = progress
 
                 override fun setProgress(
                     player: Player,
                     advancement: KtAdvancement,
                     progress: Int,
                 ) = throw NotImplementedError()
+
+                override fun setProgressAll(
+                    player: Player,
+                    progress: Map<KtAdvancement, Int>,
+                ) = throw NotImplementedError()
             }
 
         runtime.sendPacket(
             player,
             true,
-            progressedAdvancements.filter {
-                it.key.isShow(readOnlyStore, player)
-            },
+            advancements.values
+                .associateWith { progress[it.id] ?: 0 }
+                .filter { it.key.isShow(readOnlyStore, player) },
             emptySet(),
         )
     }
