@@ -384,6 +384,7 @@ class KtAdvancements<T : KtAdvancementStore>(
          * Processes all updates and sends them to the player
          */
         internal fun process() {
+            store.updateProgress(player, progress)
             sendPacket(player, false, progress)
         }
     }
