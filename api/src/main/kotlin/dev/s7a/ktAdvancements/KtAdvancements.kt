@@ -11,7 +11,7 @@ import java.util.logging.Logger
  * Main class for the advancement system
  *
  * This class manages the registration, display, granting, and revoking of advancements.
- * It automatically selects the appropriate runtime based on the version.
+ * It automatically selects the appropriate runtime based on the server version.
  *
  * @param store Store for saving advancement progress
  * @param runtime Custom runtime (optional)
@@ -65,21 +65,179 @@ class KtAdvancements<T : KtAdvancementStore>(
     fun getAll() = advancements.values.toList()
 
     /**
+     * Gets all advancements with progress for a player
+     *
+     * @param player Target player
+     * @return Map of advancement to progress
+     */
+    fun getAll(player: Player): Map<KtAdvancement, Int> {
+        val progress = store.getProgressAll(player)
+        return advancements.values.associateWith { progress[it.id] ?: 0 }
+    }
+
+    /**
      * Shows all advancements to a player
      *
-     * @param player Player to show advancements to
+     * @param player Target player
      */
     fun showAll(player: Player) {
-        val progress = store.getProgressAll(player)
-        val readOnlyStore =
-            // Use fetched data
+        sendPacket(player, true, getAll(player))
+    }
+
+    /**
+     * Grants an advancement to a player by ID
+     *
+     * @param player Target player
+     * @param id Advancement ID
+     * @param step Number of steps to grant
+     * @return true if the advancement was found and granted
+     */
+    fun grant(
+        player: Player,
+        id: NamespacedKey,
+        step: Int,
+    ) = transaction(player) {
+        grant(id, step)
+    }
+
+    /**
+     * Grants an advancement to a player
+     *
+     * @param player Target player
+     * @param advancement Advancement to grant
+     * @param step Number of steps to grant (default: advancement requirement)
+     * @return true if the advancement was granted
+     */
+    fun grant(
+        player: Player,
+        advancement: KtAdvancement,
+        step: Int = advancement.requirement,
+    ) = transaction(player) {
+        grant(advancement, step)
+    }
+
+    /**
+     * Grants all advancements to a player
+     *
+     * @param player Target player
+     * @return true if any advancement was granted
+     */
+    fun grantAll(player: Player) =
+        transaction(player) {
+            grantAll()
+        }
+
+    /**
+     * Revokes an advancement from a player by ID
+     *
+     * @param player Target player
+     * @param id Advancement ID
+     * @param step Number of steps to revoke
+     * @return true if the advancement was found and revoked
+     */
+    fun revoke(
+        player: Player,
+        id: NamespacedKey,
+        step: Int,
+    ) = transaction(player) {
+        revoke(id, step)
+    }
+
+    /**
+     * Revokes an advancement from a player
+     *
+     * @param player Target player
+     * @param advancement Advancement to revoke
+     * @param step Number of steps to revoke (default: advancement requirement)
+     * @return true if the advancement was revoked
+     */
+    fun revoke(
+        player: Player,
+        advancement: KtAdvancement,
+        step: Int = advancement.requirement,
+    ) = transaction(player) {
+        revoke(advancement, step)
+    }
+
+    /**
+     * Revokes all advancements from a player
+     *
+     * @param player Target player
+     * @return true if any advancement was revoked
+     */
+    fun revokeAll(player: Player) =
+        transaction(player) {
+            revokeAll()
+        }
+
+    /**
+     * Sets advancement progress directly by ID
+     *
+     * @param player Target player
+     * @param id Advancement ID
+     * @param progress Progress to set
+     * @return true if the advancement was found and progress was set
+     */
+    fun set(
+        player: Player,
+        id: NamespacedKey,
+        progress: Int,
+    ) = transaction(player) {
+        set(id, progress)
+    }
+
+    /**
+     * Sets advancement progress directly
+     *
+     * @param player Target player
+     * @param advancement Advancement to set progress for
+     * @param progress Progress to set
+     * @return true if the progress was set
+     */
+    fun set(
+        player: Player,
+        advancement: KtAdvancement,
+        progress: Int,
+    ) = transaction(player) {
+        set(advancement, progress)
+    }
+
+    /**
+     * Executes a transaction for updating advancement progress
+     *
+     * @param player Target player
+     * @param block Block to update progress
+     * @return Result of the transaction
+     */
+    fun <R> transaction(
+        player: Player,
+        block: Transaction.() -> R,
+    ) = Transaction(player).run {
+        block().apply {
+            process()
+        }
+    }
+
+    /**
+     * Sends advancement progress to a player
+     *
+     * @param player Target player
+     * @param isReset Whether to reset all progress before sending
+     * @param advancements Progress to send
+     */
+    private fun sendPacket(
+        player: Player,
+        isReset: Boolean,
+        advancements: Map<KtAdvancement, Int>,
+    ) {
+        val store =
             object : KtAdvancementStore {
                 override fun getProgress(
                     player: Player,
                     advancement: KtAdvancement,
-                ) = progress[advancement.id] ?: 0
+                ) = advancements[advancement] ?: 0
 
-                override fun getProgressAll(player: Player) = progress
+                override fun getProgressAll(player: Player) = advancements.mapKeys { it.key.id }
 
                 override fun setProgress(
                     player: Player,
@@ -92,194 +250,147 @@ class KtAdvancements<T : KtAdvancementStore>(
                     progress: Map<KtAdvancement, Int>,
                 ) = throw NotImplementedError()
             }
-
+        val (updated, removed) = advancements.entries.partition { it.key.isShow(store, player) }
         runtime.sendPacket(
             player,
-            true,
-            advancements.values
-                .associateWith { progress[it.id] ?: 0 }
-                .filter { it.key.isShow(readOnlyStore, player) },
-            emptySet(),
+            isReset,
+            updated.associate { it.key to it.value },
+            removed.map { it.key.id }.toSet(),
         )
     }
 
     /**
-     * Result of granting an advancement
+     * Transaction class for updating advancement progress
+     *
+     * This class manages batch updates of advancement progress and
+     * sends changes to the player when the update is complete.
      */
-    sealed interface GrantResult {
-        /** Advancement not found */
-        data object NotFound : GrantResult
-
-        /** Advancement already granted */
-        data object AlreadyGranted : GrantResult
+    inner class Transaction(
+        private val player: Player,
+    ) {
+        private val progress = getAll(player).toMutableMap()
 
         /**
-         * Advancement granted successfully
+         * Grants an advancement by ID
          *
-         * @param lastProgress Previous progress
-         * @param progress Current progress
-         * @param isGranted Whether the advancement is granted
-         * @param isShow Whether the advancement is shown
+         * @param id Advancement ID
+         * @param step Number of steps to grant
+         * @return true if the advancement was found and granted
          */
-        data class Success(
-            val lastProgress: Int,
-            val progress: Int,
-            val isGranted: Boolean,
-            val isShow: Boolean,
-        ) : GrantResult
-    }
-
-    /**
-     * Grants an advancement to a player
-     *
-     * @param player Player to grant advancement to
-     * @param id Advancement ID
-     * @return Result of granting
-     */
-    fun grant(
-        player: Player,
-        id: NamespacedKey,
-    ): GrantResult {
-        val advancement = advancements[id] ?: return GrantResult.NotFound
-        return grant(player, advancement)
-    }
-
-    /**
-     * Grants an advancement to a player with step count
-     *
-     * @param player Player to grant advancement to
-     * @param id Advancement ID
-     * @param step Number of steps to grant
-     * @return Result of granting
-     */
-    fun grant(
-        player: Player,
-        id: NamespacedKey,
-        step: Int,
-    ): GrantResult {
-        val advancement = advancements[id] ?: return GrantResult.NotFound
-        return grant(player, advancement, step)
-    }
-
-    /**
-     * Grants an advancement to a player
-     *
-     * @param player Player to grant advancement to
-     * @param advancement Advancement to grant
-     * @param step Number of steps to grant (default: advancement requirement)
-     * @return Result of granting
-     */
-    fun grant(
-        player: Player,
-        advancement: KtAdvancement,
-        step: Int = advancement.requirement,
-    ): GrantResult {
-        val requirement = advancement.requirement
-        val lastProgress = store.getProgress(player, advancement)
-        if (requirement <= lastProgress) return GrantResult.AlreadyGranted
-        val progress = (lastProgress + step).coerceAtMost(requirement)
-        store.setProgress(player, advancement, progress)
-        val isShow = advancement.isShow(store, player)
-        if (isShow) {
-            runtime.sendPacket(
-                player,
-                false,
-                mapOf(advancement to progress),
-                emptySet(),
-            )
+        fun grant(
+            id: NamespacedKey,
+            step: Int,
+        ): Boolean {
+            val advancement = advancements[id] ?: return false
+            return grant(advancement, step)
         }
-        return GrantResult.Success(lastProgress, progress, progress == requirement, isShow)
-    }
-
-    /**
-     * Result of revoking an advancement
-     */
-    sealed interface RevokeResult {
-        /** Advancement not found */
-        data object NotFound : RevokeResult
-
-        /** No progress to revoke */
-        data object NoProgress : RevokeResult
 
         /**
-         * Advancement revoked successfully
+         * Grants an advancement
          *
-         * @param lastProgress Previous progress
-         * @param progress Current progress
-         * @param isShow Whether the advancement is shown
+         * @param advancement Advancement to grant
+         * @param step Number of steps to grant (default: advancement requirement)
+         * @return true if the advancement was granted
          */
-        data class Success(
-            val lastProgress: Int,
-            val progress: Int,
-            val isShow: Boolean,
-        ) : RevokeResult
-    }
-
-    /**
-     * Revokes an advancement from a player
-     *
-     * @param player Player to revoke advancement from
-     * @param id Advancement ID
-     * @return Result of revoking
-     */
-    fun revoke(
-        player: Player,
-        id: NamespacedKey,
-    ): RevokeResult {
-        val advancement = advancements[id] ?: return RevokeResult.NotFound
-        return revoke(player, advancement)
-    }
-
-    /**
-     * Revokes an advancement from a player with step count
-     *
-     * @param player Player to revoke advancement from
-     * @param id Advancement ID
-     * @param step Number of steps to revoke
-     * @return Result of revoking
-     */
-    fun revoke(
-        player: Player,
-        id: NamespacedKey,
-        step: Int,
-    ): RevokeResult {
-        val advancement = advancements[id] ?: return RevokeResult.NotFound
-        return revoke(player, advancement, step)
-    }
-
-    /**
-     * Revokes an advancement from a player
-     *
-     * @param player Player to revoke advancement from
-     * @param advancement Advancement to revoke
-     * @param step Number of steps to revoke (default: advancement requirement)
-     * @return Result of revoking
-     */
-    fun revoke(
-        player: Player,
-        advancement: KtAdvancement,
-        step: Int = advancement.requirement,
-    ): RevokeResult {
-        val lastProgress = store.getProgress(player, advancement)
-        if (lastProgress <= 0) return RevokeResult.NoProgress
-        val progress = (lastProgress - step).coerceAtLeast(0)
-        store.setProgress(player, advancement, progress)
-        val isShow = advancement.isShow(store, player)
-        if (isShow) {
-            runtime.sendPacket(
-                player,
-                false,
-                mapOf(advancement to progress),
-                emptySet(),
-            )
-        } else {
-            runtime.sendPacket(
-                player,
-                false,
-                mapOf(),
-                setOf(advancement.id),
-            )
+        fun grant(
+            advancement: KtAdvancement,
+            step: Int = advancement.requirement,
+        ): Boolean {
+            val current = progress[advancement] ?: 0
+            return set(advancement, current + step)
         }
-        return RevokeResult.Success(lastProgress, progress, isShow)
+
+        /**
+         * Grants all advancements
+         *
+         * @return true if any advancement was granted
+         */
+        fun grantAll(): Boolean {
+            if (progress.isEmpty()) return false
+            progress.keys.forEach { advancement ->
+                progress[advancement] = advancement.requirement
+            }
+            return true
+        }
+
+        /**
+         * Revokes an advancement by ID
+         *
+         * @param id Advancement ID
+         * @param step Number of steps to revoke
+         * @return true if the advancement was found and revoked
+         */
+        fun revoke(
+            id: NamespacedKey,
+            step: Int,
+        ): Boolean {
+            val advancement = advancements[id] ?: return false
+            return revoke(advancement, step)
+        }
+
+        /**
+         * Revokes an advancement
+         *
+         * @param advancement Advancement to revoke
+         * @param step Number of steps to revoke (default: advancement requirement)
+         * @return true if the advancement was revoked
+         */
+        fun revoke(
+            advancement: KtAdvancement,
+            step: Int = advancement.requirement,
+        ): Boolean {
+            val current = progress[advancement] ?: 0
+            return set(advancement, current - step)
+        }
+
+        /**
+         * Revokes all advancements
+         *
+         * @return true if any advancement was revoked
+         */
+        fun revokeAll(): Boolean {
+            if (progress.isEmpty()) return false
+            progress.keys.forEach { advancement ->
+                progress[advancement] = 0
+            }
+            return true
+        }
+
+        /**
+         * Sets advancement progress directly by ID
+         *
+         * @param id Advancement ID
+         * @param progress Progress to set
+         * @return true if the advancement was found and progress was set
+         */
+        fun set(
+            id: NamespacedKey,
+            progress: Int,
+        ): Boolean {
+            val advancement = advancements[id] ?: return false
+            return set(advancement, progress)
+        }
+
+        /**
+         * Sets advancement progress directly
+         *
+         * @param advancement Advancement to set progress for
+         * @param progress Progress to set
+         * @return true if the progress was set
+         */
+        fun set(
+            advancement: KtAdvancement,
+            progress: Int,
+        ): Boolean {
+            this.progress[advancement] = progress.coerceIn(0, advancement.requirement)
+            return true
+        }
+
+        /**
+         * Processes all updates and sends them to the player
+         */
+        internal fun process() {
+            sendPacket(player, false, progress)
+        }
     }
 }
