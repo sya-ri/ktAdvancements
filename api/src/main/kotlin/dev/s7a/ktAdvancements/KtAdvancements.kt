@@ -229,16 +229,37 @@ class KtAdvancements<T : KtAdvancementStore>(
         player: Player,
         isReset: Boolean,
         advancements: Map<KtAdvancement, Int>,
-        all: Map<KtAdvancement, Int> = advancements,
+        lastAdvancements: Map<KtAdvancement, Int> = emptyMap(),
     ) {
+        val (updated, removed) = partitionAdvancements(player, advancements)
+        val (lastUpdated, lastRemoved) = partitionAdvancements(player, lastAdvancements)
+        runtime.sendPacket(
+            player,
+            isReset,
+            updated.filter { it.value != lastUpdated[it.key] },
+            removed.filterNot(lastRemoved::contains).toSet(),
+        )
+    }
+
+    /**
+     * Partitions the advancement progress map into those that should be shown and those that should be removed
+     *
+     * @param player Target player
+     * @param advancements Map of advancement progress
+     * @return Pair of map of advancements to show and set of advancement IDs to remove
+     */
+    private fun partitionAdvancements(
+        player: Player,
+        advancements: Map<KtAdvancement, Int>,
+    ): Pair<Map<KtAdvancement, Int>, Set<NamespacedKey>> {
         val store =
             object : KtAdvancementStore {
                 override fun getProgress(
                     player: Player,
                     advancement: KtAdvancement,
-                ) = all[advancement] ?: 0
+                ) = advancements[advancement] ?: 0
 
-                override fun getProgressAll(player: Player) = all.mapKeys { it.key.id }
+                override fun getProgressAll(player: Player) = advancements.mapKeys { it.key.id }
 
                 override fun updateProgress(
                     player: Player,
@@ -246,12 +267,7 @@ class KtAdvancements<T : KtAdvancementStore>(
                 ) = throw NotImplementedError()
             }
         val (updated, removed) = advancements.entries.partition { it.key.isShow(store, player) }
-        runtime.sendPacket(
-            player,
-            isReset,
-            updated.associate { it.key to it.value },
-            removed.map { it.key.id }.toSet(),
-        )
+        return updated.associate { it.key to it.value } to removed.map { it.key.id }.toSet()
     }
 
     /**
@@ -389,7 +405,7 @@ class KtAdvancements<T : KtAdvancementStore>(
             val diff = progress.filter { it.value != lastProgress[it.key] }
             if (diff.isEmpty()) return
             store.updateProgress(player, diff)
-            sendPacket(player, false, diff, progress)
+            sendPacket(player, false, progress, lastProgress)
         }
     }
 }
