@@ -229,15 +229,16 @@ class KtAdvancements<T : KtAdvancementStore>(
         player: Player,
         isReset: Boolean,
         advancements: Map<KtAdvancement, Int>,
+        all: Map<KtAdvancement, Int> = advancements,
     ) {
         val store =
             object : KtAdvancementStore {
                 override fun getProgress(
                     player: Player,
                     advancement: KtAdvancement,
-                ) = advancements[advancement] ?: 0
+                ) = all[advancement] ?: 0
 
-                override fun getProgressAll(player: Player) = advancements.mapKeys { it.key.id }
+                override fun getProgressAll(player: Player) = all.mapKeys { it.key.id }
 
                 override fun updateProgress(
                     player: Player,
@@ -386,8 +387,9 @@ class KtAdvancements<T : KtAdvancementStore>(
          */
         internal fun process() {
             val diff = progress.filter { it.value != lastProgress[it.key] }
+            if (diff.isEmpty()) return
             store.updateProgress(player, diff)
-            sendPacket(player, false, diff)
+            sendPacket(player, false, diff, progress)
         }
     }
 }
