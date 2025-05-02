@@ -15,6 +15,11 @@ allprojects {
 subprojects {
     apply(plugin = "kotlin")
 
+    repositories {
+        // Spigot
+        maven(url = "https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
+    }
+
     java {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

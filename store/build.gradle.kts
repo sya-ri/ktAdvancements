@@ -1,11 +1,6 @@
 subprojects {
     apply(plugin = "maven-publish")
 
-    repositories {
-        // Spigot
-        maven(url = "https://hub.spigotmc.org/nexus/content/repositories/snapshots/")
-    }
-
     dependencies {
         implementation(project(":api"))
 
