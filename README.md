@@ -28,10 +28,14 @@ repositories {
 dependencies {
     implementation("dev.s7a:ktAdvancements-api:1.0.0-SNAPSHOT")
     implementation("dev.s7a:ktAdvancements-runtime:1.0.0-SNAPSHOT")
+    
+    // Add any of the following store implementations as needed
+    // implementation("dev.s7a:ktAdvancements-store-XXX:1.0.0-SNAPSHOT")
 }
 ```
 
-For other runtime options, see the Runtime Options section below.
+- For other runtime options, see the [Runtime Options](#runtime-options) section below.
+- For storage options, see the [Data Storage](#data-storage) section below.
 
 ## Runtime Options
 
@@ -301,8 +305,7 @@ graph TD
     end
 
     subgraph Store[Store Modules]
-        S[ktAdvancements-store-sqlite] --> E
-        M[ktAdvancements-store-mysql] --> E
+        S[ktAdvancements-store-XXX] --> E
     end
 
     H --> E
