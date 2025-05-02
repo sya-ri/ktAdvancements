@@ -5,54 +5,42 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 
 /**
- * Definition of an advancement
- *
- * @param parent Parent advancement (optional)
- * @param id Advancement ID
- * @param display Display information for the advancement
- * @param requirement Number of steps required to complete the advancement (default: 1)
- * @param visibility Visibility condition for the advancement (default: Always)
+ * Interface representing the definition of an advancement
  */
-data class KtAdvancement(
-    val parent: KtAdvancement?,
-    val id: NamespacedKey,
-    val display: Display,
-    val requirement: Int = 1,
-    val visibility: Visibility = Visibility.Always,
-) {
-    val criteria = List(requirement) { it.toString(36) }
+interface KtAdvancement {
+    /**
+     * Parent advancement (optional)
+     *
+     * If set to null, this advancement becomes a root advancement and a new tab will be added to the advancements screen.
+     * Root advancements are typically used to create new categories or tabs in the advancements interface.
+     */
+    val parent: KtAdvancement?
 
     /**
-     * Checks if the advancement is granted
-     *
-     * @param progress Current progress
-     * @return Whether the advancement is granted
+     * Advancement ID
      */
-    fun isGranted(progress: Int) = requirement <= progress
+    val id: NamespacedKey
 
     /**
-     * Checks if the advancement is granted
-     *
-     * @param store Store for saving advancement progress
-     * @param player Player to check
-     * @return Whether the advancement is granted
+     * Display information for the advancement
      */
-    fun isGranted(
-        store: KtAdvancementStore,
-        player: Player,
-    ) = isGranted(store.getProgress(player, this))
+    val display: Display
 
     /**
-     * Checks if the advancement should be shown
-     *
-     * @param store Store for saving advancement progress
-     * @param player Player to check
-     * @return Whether the advancement should be shown
+     * Number of steps required to complete the advancement
      */
-    fun isShow(
-        store: KtAdvancementStore,
-        player: Player,
-    ) = visibility.isShow(this, store, player)
+    val requirement: Int
+
+    /**
+     * Visibility condition for the advancement
+     */
+    val visibility: Visibility
+
+    /**
+     * Criteria for the advancement
+     */
+    val criteria: List<String>
+        get() = List(requirement) { it.toString(36) }
 
     /**
      * Display information for an advancement
@@ -80,19 +68,25 @@ data class KtAdvancement(
          * Frame type for advancement display
          */
         enum class Frame {
-            /** Task frame */
+            /**
+             * Task frame
+             */
             Task,
 
-            /** Challenge frame */
+            /**
+             * Challenge frame
+             */
             Challenge,
 
-            /** Goal frame */
+            /**
+             * Goal frame
+             */
             Goal,
         }
     }
 
     /**
-     * Visibility condition for an advancement
+     * Interface representing visibility condition for an advancement
      */
     interface Visibility {
         /**
@@ -109,7 +103,9 @@ data class KtAdvancement(
             player: Player,
         ): Boolean
 
-        /** Always visible */
+        /**
+         * Always visible
+         */
         data object Always : Visibility {
             override fun isShow(
                 advancement: KtAdvancement,
@@ -118,7 +114,9 @@ data class KtAdvancement(
             ) = true
         }
 
-        /** Visible when player has any progress */
+        /**
+         * Visible when player has any progress
+         */
         data object HaveProgress : Visibility {
             override fun isShow(
                 advancement: KtAdvancement,
@@ -127,7 +125,9 @@ data class KtAdvancement(
             ) = 0 < store.getProgress(player, advancement)
         }
 
-        /** Visible only when advancement is granted */
+        /**
+         * Visible only when advancement is granted
+         */
         data object Granted : Visibility {
             override fun isShow(
                 advancement: KtAdvancement,
@@ -136,17 +136,15 @@ data class KtAdvancement(
             ) = advancement.isGranted(store.getProgress(player, advancement))
         }
 
-        /** Visible when parent advancement is granted */
+        /**
+         * Visible when parent advancement is granted
+         */
         data object ParentGranted : Visibility {
             override fun isShow(
                 advancement: KtAdvancement,
                 store: KtAdvancementStore,
                 player: Player,
-            ) = if (advancement.parent != null) {
-                advancement.parent.isGranted(store, player)
-            } else {
-                true
-            }
+            ) = advancement.parent?.isGranted(store, player) != false // null or true
         }
 
         /**
@@ -180,3 +178,35 @@ data class KtAdvancement(
         }
     }
 }
+
+/**
+ * Checks if the advancement is granted
+ *
+ * @param progress Current progress
+ * @return Whether the advancement is granted
+ */
+fun KtAdvancement.isGranted(progress: Int) = requirement <= progress
+
+/**
+ * Checks if the advancement is granted
+ *
+ * @param store Store for saving advancement progress
+ * @param player Player to check
+ * @return Whether the advancement is granted
+ */
+fun KtAdvancement.isGranted(
+    store: KtAdvancementStore,
+    player: Player,
+) = isGranted(store.getProgress(player, this))
+
+/**
+ * Checks if the advancement should be shown
+ *
+ * @param store Store for saving advancement progress
+ * @param player Player to check
+ * @return Whether the advancement should be shown
+ */
+fun KtAdvancement.isShow(
+    store: KtAdvancementStore,
+    player: Player,
+) = visibility.isShow(this, store, player)
