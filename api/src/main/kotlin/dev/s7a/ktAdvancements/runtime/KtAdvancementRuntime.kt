@@ -24,7 +24,7 @@ interface KtAdvancementRuntime {
     fun sendPacket(
         player: Player,
         reset: Boolean,
-        advancements: Map<KtAdvancement, Int>,
+        advancements: Map<KtAdvancement<*>, Int>,
         removed: Set<NamespacedKey>,
     )
 }

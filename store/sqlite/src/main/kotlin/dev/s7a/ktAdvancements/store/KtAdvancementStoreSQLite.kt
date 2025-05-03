@@ -17,10 +17,10 @@ import java.util.logging.Logger
  * @property file SQLite database file
  * @property config SQLite configuration
  */
-class KtAdvancementStoreSQLite(
+class KtAdvancementStoreSQLite<T : KtAdvancement<T>>(
     private val file: File,
     private val config: SQLiteConfig = SQLiteConfig(),
-) : KtAdvancementStore {
+) : KtAdvancementStore<T> {
     /**
      * Creates a new SQLite store with the specified path
      *
@@ -70,7 +70,7 @@ class KtAdvancementStoreSQLite(
 
     override fun getProgress(
         player: Player,
-        advancement: KtAdvancement,
+        advancement: T,
     ): Int {
         getConnection().use { connection ->
             connection
@@ -92,7 +92,10 @@ class KtAdvancementStoreSQLite(
         }
     }
 
-    override fun getProgressAll(player: Player): Map<NamespacedKey, Int> {
+    override fun getProgressAll(
+        player: Player,
+        advancements: Map<NamespacedKey, T>,
+    ): Map<T, Int> {
         getConnection().use { connection ->
             connection
                 .prepareStatement(
@@ -105,8 +108,9 @@ class KtAdvancementStoreSQLite(
                         return buildMap {
                             while (result.next()) {
                                 val advancementId = NamespacedKey.fromString(result.getString("advancementId"))
-                                if (advancementId != null) {
-                                    put(advancementId, result.getInt("progress"))
+                                val advancement = advancements[advancementId]
+                                if (advancement != null) {
+                                    put(advancement, result.getInt("progress"))
                                 } else {
                                     logger.warning("Invalid advancementId: ${result.getString("advancementId")}")
                                 }
@@ -119,7 +123,7 @@ class KtAdvancementStoreSQLite(
 
     override fun updateProgress(
         player: Player,
-        progress: Map<KtAdvancement, Int>,
+        progress: Map<T, Int>,
     ) {
         if (progress.isEmpty()) return
         getConnection().useTransaction { connection ->

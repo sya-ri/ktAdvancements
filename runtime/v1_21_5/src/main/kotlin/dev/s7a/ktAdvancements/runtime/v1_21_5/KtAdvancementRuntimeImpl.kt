@@ -27,7 +27,7 @@ class KtAdvancementRuntimeImpl : KtAdvancementRuntime {
     override fun sendPacket(
         player: Player,
         reset: Boolean,
-        advancements: Map<KtAdvancement, Int>,
+        advancements: Map<KtAdvancement<*>, Int>,
         removed: Set<NamespacedKey>,
     ) {
         (player as CraftPlayer).handle.connection.send(
@@ -55,7 +55,7 @@ class KtAdvancementRuntimeImpl : KtAdvancementRuntime {
 
     private fun NamespacedKey.location() = ResourceLocation.fromNamespaceAndPath(namespace, key)
 
-    private fun KtAdvancement.convert() =
+    private fun KtAdvancement<*>.convert() =
         Advancement(
             parent?.let { Optional.of(it.id.location()) } ?: Optional.empty(),
             Optional.of(display()),
@@ -65,7 +65,7 @@ class KtAdvancementRuntimeImpl : KtAdvancementRuntime {
             false,
         )
 
-    private fun KtAdvancement.display() =
+    private fun KtAdvancement<*>.display() =
         DisplayInfo(
             CraftItemStack.asNMSCopy(display.icon),
             CraftChatMessage.fromStringOrNull(display.title),
@@ -86,7 +86,7 @@ class KtAdvancementRuntimeImpl : KtAdvancementRuntime {
             KtAdvancement.Display.Frame.Goal -> AdvancementType.GOAL
         }
 
-    private fun KtAdvancement.progress(progress: Int) =
+    private fun KtAdvancement<*>.progress(progress: Int) =
         AdvancementProgress().apply {
             update(AdvancementRequirements.allOf(criteria))
             repeat(progress.coerceAtMost(requirement)) {

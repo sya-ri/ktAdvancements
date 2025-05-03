@@ -20,7 +20,7 @@ import kotlin.use
  * @property tableName Table name to store advancement progress
  * @property options Additional connection options
  */
-class KtAdvancementStoreMySQL(
+class KtAdvancementStoreMySQL<T : KtAdvancement<T>>(
     private val host: String,
     private val port: Int,
     private val database: String,
@@ -28,7 +28,7 @@ class KtAdvancementStoreMySQL(
     private val password: String,
     private val tableName: String = "advancement_progress",
     private val options: Map<String, String> = emptyMap(),
-) : KtAdvancementStore {
+) : KtAdvancementStore<T> {
     private val logger = Logger.getLogger("KtAdvancementStoreMySQL")
 
     init {
@@ -73,7 +73,7 @@ class KtAdvancementStoreMySQL(
 
     override fun getProgress(
         player: Player,
-        advancement: KtAdvancement,
+        advancement: T,
     ): Int {
         getConnection().use { connection ->
             connection
@@ -95,7 +95,10 @@ class KtAdvancementStoreMySQL(
         }
     }
 
-    override fun getProgressAll(player: Player): Map<NamespacedKey, Int> {
+    override fun getProgressAll(
+        player: Player,
+        advancements: Map<NamespacedKey, T>,
+    ): Map<T, Int> {
         getConnection().use { connection ->
             connection
                 .prepareStatement(
@@ -108,8 +111,9 @@ class KtAdvancementStoreMySQL(
                         return buildMap {
                             while (result.next()) {
                                 val advancementId = NamespacedKey.fromString(result.getString("advancementId"))
-                                if (advancementId != null) {
-                                    put(advancementId, result.getInt("progress"))
+                                val advancement = advancements[advancementId]
+                                if (advancement != null) {
+                                    put(advancement, result.getInt("progress"))
                                 } else {
                                     logger.warning("Invalid advancementId: ${result.getString("advancementId")}")
                                 }
@@ -122,7 +126,7 @@ class KtAdvancementStoreMySQL(
 
     override fun updateProgress(
         player: Player,
-        progress: Map<KtAdvancement, Int>,
+        progress: Map<T, Int>,
     ) {
         if (progress.isEmpty()) return
         getConnection().useTransaction { connection ->

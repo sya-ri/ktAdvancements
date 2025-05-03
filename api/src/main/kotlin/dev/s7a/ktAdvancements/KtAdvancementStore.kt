@@ -10,7 +10,7 @@ import java.util.UUID
  * This interface provides methods for storing and retrieving advancement progress.
  * Implementations can store the data in various ways, such as in memory or in a database.
  */
-interface KtAdvancementStore {
+interface KtAdvancementStore<T : KtAdvancement<T>> {
     /**
      * Gets the progress of an advancement
      *
@@ -20,16 +20,20 @@ interface KtAdvancementStore {
      */
     fun getProgress(
         player: Player,
-        advancement: KtAdvancement,
+        advancement: T,
     ): Int
 
     /**
      * Gets all progress for a player
      *
      * @param player Player to check
-     * @return Map of advancement ID to progress
+     * @param advancements Map of advancement ID to advancement
+     * @return Map of advancement to progress
      */
-    fun getProgressAll(player: Player): Map<NamespacedKey, Int>
+    fun getProgressAll(
+        player: Player,
+        advancements: Map<NamespacedKey, T>,
+    ): Map<T, Int>
 
     /**
      * Updates progress for specified advancements
@@ -42,7 +46,7 @@ interface KtAdvancementStore {
      */
     fun updateProgress(
         player: Player,
-        progress: Map<KtAdvancement, Int>,
+        progress: Map<T, Int>,
     )
 
     /**
@@ -51,24 +55,27 @@ interface KtAdvancementStore {
      * This implementation stores all progress in memory.
      * The data will be lost when the server is stopped.
      */
-    class InMemory : KtAdvancementStore {
+    class InMemory<T : KtAdvancement<T>> : KtAdvancementStore<T> {
         /**
          * Map of player UUID to map of advancement ID to progress
          */
-        private val list = mutableMapOf<UUID, MutableMap<NamespacedKey, Int>>()
+        private val list = mutableMapOf<UUID, MutableMap<T, Int>>()
 
         override fun getProgress(
             player: Player,
-            advancement: KtAdvancement,
-        ) = list[player.uniqueId]?.get(advancement.id) ?: 0
+            advancement: T,
+        ) = list[player.uniqueId]?.get(advancement) ?: 0
 
-        override fun getProgressAll(player: Player) = list[player.uniqueId].orEmpty()
+        override fun getProgressAll(
+            player: Player,
+            advancements: Map<NamespacedKey, T>,
+        ) = list[player.uniqueId].orEmpty()
 
         override fun updateProgress(
             player: Player,
-            progress: Map<KtAdvancement, Int>,
+            progress: Map<T, Int>,
         ) {
-            list.getOrPut(player.uniqueId, ::mutableMapOf).putAll(progress.mapKeys { it.key.id })
+            list.getOrPut(player.uniqueId, ::mutableMapOf).putAll(progress.mapKeys { it.key })
         }
     }
 }

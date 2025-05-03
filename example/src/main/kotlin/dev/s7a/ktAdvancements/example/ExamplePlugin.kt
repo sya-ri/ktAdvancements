@@ -6,5 +6,5 @@ import org.bukkit.plugin.java.JavaPlugin
 
 @Suppress("unused")
 class ExamplePlugin : JavaPlugin() {
-    private val ktAdvancement = KtAdvancements(KtAdvancementStore.InMemory())
+    private val ktAdvancement = KtAdvancements(Advancement.entries, KtAdvancementStore.InMemory())
 }

@@ -13,15 +13,15 @@ import java.util.logging.Logger
  * This class manages the registration, display, granting, and revoking of advancements.
  * It automatically selects the appropriate runtime based on the server version.
  *
+ * @param advancements List of advancement
  * @param store Store for saving advancement progress
  * @param runtime Custom runtime (optional)
  */
-class KtAdvancements<T : KtAdvancementStore>(
-    val store: T,
+class KtAdvancements<T : KtAdvancement<T>, S : KtAdvancementStore<T>>(
+    private val advancements: List<T>,
+    val store: S,
     runtime: KtAdvancementRuntime? = null,
 ) {
-    private val advancements = mutableMapOf<NamespacedKey, KtAdvancement>()
-
     private val runtime: KtAdvancementRuntime
 
     init {
@@ -41,28 +41,11 @@ class KtAdvancements<T : KtAdvancementStore>(
     }
 
     /**
-     * Registers an advancement
-     *
-     * @param advancement Advancement to register
-     */
-    fun register(advancement: KtAdvancement) {
-        advancements[advancement.id] = advancement
-    }
-
-    /**
-     * Gets an advancement by ID
-     *
-     * @param id Advancement ID
-     * @return Advancement (null if not found)
-     */
-    fun get(id: NamespacedKey) = advancements[id]
-
-    /**
      * Gets all advancements
      *
      * @return List of advancements
      */
-    fun getAll() = advancements.values.toList()
+    fun getAll() = advancements.toList()
 
     /**
      * Gets all advancements with progress for a player
@@ -70,9 +53,9 @@ class KtAdvancements<T : KtAdvancementStore>(
      * @param player Target player
      * @return Map of advancement to progress
      */
-    fun getAll(player: Player): Map<KtAdvancement, Int> {
-        val progress = store.getProgressAll(player)
-        return advancements.values.associateWith { progress[it.id] ?: 0 }
+    fun getAll(player: Player): Map<T, Int> {
+        val progress = store.getProgressAll(player, advancements.associateBy(KtAdvancement<*>::id))
+        return advancements.associateWith { progress[it] ?: 0 }
     }
 
     /**
@@ -85,22 +68,6 @@ class KtAdvancements<T : KtAdvancementStore>(
     }
 
     /**
-     * Grants an advancement to a player by ID
-     *
-     * @param player Target player
-     * @param id Advancement ID
-     * @param step Number of steps to grant
-     * @return true if the advancement was found and granted
-     */
-    fun grant(
-        player: Player,
-        id: NamespacedKey,
-        step: Int,
-    ) = transaction(player) {
-        grant(id, step)
-    }
-
-    /**
      * Grants an advancement to a player
      *
      * @param player Target player
@@ -110,7 +77,7 @@ class KtAdvancements<T : KtAdvancementStore>(
      */
     fun grant(
         player: Player,
-        advancement: KtAdvancement,
+        advancement: T,
         step: Int = advancement.requirement,
     ) = transaction(player) {
         grant(advancement, step)
@@ -128,22 +95,6 @@ class KtAdvancements<T : KtAdvancementStore>(
         }
 
     /**
-     * Revokes an advancement from a player by ID
-     *
-     * @param player Target player
-     * @param id Advancement ID
-     * @param step Number of steps to revoke
-     * @return true if the advancement was found and revoked
-     */
-    fun revoke(
-        player: Player,
-        id: NamespacedKey,
-        step: Int,
-    ) = transaction(player) {
-        revoke(id, step)
-    }
-
-    /**
      * Revokes an advancement from a player
      *
      * @param player Target player
@@ -153,7 +104,7 @@ class KtAdvancements<T : KtAdvancementStore>(
      */
     fun revoke(
         player: Player,
-        advancement: KtAdvancement,
+        advancement: T,
         step: Int = advancement.requirement,
     ) = transaction(player) {
         revoke(advancement, step)
@@ -171,22 +122,6 @@ class KtAdvancements<T : KtAdvancementStore>(
         }
 
     /**
-     * Sets advancement progress directly by ID
-     *
-     * @param player Target player
-     * @param id Advancement ID
-     * @param progress Progress to set
-     * @return true if the advancement was found and progress was set
-     */
-    fun set(
-        player: Player,
-        id: NamespacedKey,
-        progress: Int,
-    ) = transaction(player) {
-        set(id, progress)
-    }
-
-    /**
      * Sets advancement progress directly
      *
      * @param player Target player
@@ -196,7 +131,7 @@ class KtAdvancements<T : KtAdvancementStore>(
      */
     fun set(
         player: Player,
-        advancement: KtAdvancement,
+        advancement: T,
         progress: Int,
     ) = transaction(player) {
         set(advancement, progress)
@@ -228,8 +163,8 @@ class KtAdvancements<T : KtAdvancementStore>(
     private fun sendPacket(
         player: Player,
         isReset: Boolean,
-        advancements: Map<KtAdvancement, Int>,
-        lastAdvancements: Map<KtAdvancement, Int> = emptyMap(),
+        advancements: Map<T, Int>,
+        lastAdvancements: Map<T, Int> = emptyMap(),
     ) {
         val (updated, removed) = partitionAdvancements(player, advancements)
         val (lastUpdated, lastRemoved) = partitionAdvancements(player, lastAdvancements)
@@ -237,7 +172,7 @@ class KtAdvancements<T : KtAdvancementStore>(
             player,
             isReset,
             updated.filter { it.value != lastUpdated[it.key] },
-            removed.filterNot(lastRemoved::contains).toSet(),
+            removed.filterNot(lastRemoved::contains).map(KtAdvancement<*>::id).toSet(),
         )
     }
 
@@ -245,29 +180,32 @@ class KtAdvancements<T : KtAdvancementStore>(
      * Partitions the advancement progress map into those that should be shown and those that should be removed
      *
      * @param player Target player
-     * @param advancements Map of advancement progress
+     * @param progress Map of advancement progress
      * @return Pair of map of advancements to show and set of advancement IDs to remove
      */
     private fun partitionAdvancements(
         player: Player,
-        advancements: Map<KtAdvancement, Int>,
-    ): Pair<Map<KtAdvancement, Int>, Set<NamespacedKey>> {
+        progress: Map<T, Int>,
+    ): Pair<Map<T, Int>, List<T>> {
         val store =
-            object : KtAdvancementStore {
+            object : KtAdvancementStore<T> {
                 override fun getProgress(
                     player: Player,
-                    advancement: KtAdvancement,
-                ) = advancements[advancement] ?: 0
+                    advancement: T,
+                ) = progress[advancement] ?: 0
 
-                override fun getProgressAll(player: Player) = advancements.mapKeys { it.key.id }
+                override fun getProgressAll(
+                    player: Player,
+                    advancements: Map<NamespacedKey, T>,
+                ) = progress
 
                 override fun updateProgress(
                     player: Player,
-                    progress: Map<KtAdvancement, Int>,
+                    progress: Map<T, Int>,
                 ) = throw NotImplementedError()
             }
-        val (updated, removed) = advancements.entries.partition { it.key.isShow(store, player) }
-        return updated.associate { it.key to it.value } to removed.map { it.key.id }.toSet()
+        val (updated, removed) = progress.entries.partition { it.key.isShow(store, player) }
+        return updated.associate { it.key to it.value } to removed.map { it.key }
     }
 
     /**
@@ -283,21 +221,6 @@ class KtAdvancements<T : KtAdvancementStore>(
         private val progress = lastProgress.toMutableMap()
 
         /**
-         * Grants an advancement by ID
-         *
-         * @param id Advancement ID
-         * @param step Number of steps to grant
-         * @return true if the advancement was found and granted
-         */
-        fun grant(
-            id: NamespacedKey,
-            step: Int,
-        ): Boolean {
-            val advancement = advancements[id] ?: return false
-            return grant(advancement, step)
-        }
-
-        /**
          * Grants an advancement
          *
          * @param advancement Advancement to grant
@@ -305,7 +228,7 @@ class KtAdvancements<T : KtAdvancementStore>(
          * @return true if the advancement was granted
          */
         fun grant(
-            advancement: KtAdvancement,
+            advancement: T,
             step: Int = advancement.requirement,
         ): Boolean {
             val current = progress[advancement] ?: 0
@@ -326,21 +249,6 @@ class KtAdvancements<T : KtAdvancementStore>(
         }
 
         /**
-         * Revokes an advancement by ID
-         *
-         * @param id Advancement ID
-         * @param step Number of steps to revoke
-         * @return true if the advancement was found and revoked
-         */
-        fun revoke(
-            id: NamespacedKey,
-            step: Int,
-        ): Boolean {
-            val advancement = advancements[id] ?: return false
-            return revoke(advancement, step)
-        }
-
-        /**
          * Revokes an advancement
          *
          * @param advancement Advancement to revoke
@@ -348,7 +256,7 @@ class KtAdvancements<T : KtAdvancementStore>(
          * @return true if the advancement was revoked
          */
         fun revoke(
-            advancement: KtAdvancement,
+            advancement: T,
             step: Int = advancement.requirement,
         ): Boolean {
             val current = progress[advancement] ?: 0
@@ -369,21 +277,6 @@ class KtAdvancements<T : KtAdvancementStore>(
         }
 
         /**
-         * Sets advancement progress directly by ID
-         *
-         * @param id Advancement ID
-         * @param progress Progress to set
-         * @return true if the advancement was found and progress was set
-         */
-        fun set(
-            id: NamespacedKey,
-            progress: Int,
-        ): Boolean {
-            val advancement = advancements[id] ?: return false
-            return set(advancement, progress)
-        }
-
-        /**
          * Sets advancement progress directly
          *
          * @param advancement Advancement to set progress for
@@ -391,7 +284,7 @@ class KtAdvancements<T : KtAdvancementStore>(
          * @return true if the progress was set
          */
         fun set(
-            advancement: KtAdvancement,
+            advancement: T,
             progress: Int,
         ): Boolean {
             this.progress[advancement] = progress.coerceIn(0, advancement.requirement)
