@@ -37,12 +37,6 @@ interface KtAdvancement<Impl : KtAdvancement<Impl>> {
     val visibility: Visibility
 
     /**
-     * Criteria for the advancement
-     */
-    val criteria: List<String>
-        get() = List(requirement) { it.toString(36) }
-
-    /**
      * Display information for an advancement
      *
      * @param x X coordinate
@@ -210,3 +204,9 @@ fun <T : KtAdvancement<T>> T.isShow(
     store: KtAdvancementStore<T>,
     player: Player,
 ) = visibility.isShow(this, store, player)
+
+/**
+ * Criteria for the advancement
+ */
+val KtAdvancement<*>.criteria: List<String>
+    get() = List(requirement) { it.toString(36) }

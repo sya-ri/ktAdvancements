@@ -3,6 +3,7 @@
 package dev.s7a.ktAdvancements.runtime.v1_21_5
 
 import dev.s7a.ktAdvancements.KtAdvancement
+import dev.s7a.ktAdvancements.criteria
 import dev.s7a.ktAdvancements.runtime.KtAdvancementRuntime
 import net.minecraft.advancements.Advancement
 import net.minecraft.advancements.AdvancementHolder
