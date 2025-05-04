@@ -53,10 +53,7 @@ class KtAdvancements<T : KtAdvancement<T>, S : KtAdvancementStore<T>>(
      * @param player Target player
      * @return Map of advancement to progress
      */
-    fun getAll(player: Player): Map<T, Int> {
-        val progress = store.getProgressAll(player, advancements.associateBy(KtAdvancement<*>::id))
-        return advancements.associateWith { progress[it] ?: 0 }
-    }
+    fun getAll(player: Player) = store.getProgressAll(player, advancements.associateBy(KtAdvancement<*>::id))
 
     /**
      * Shows all advancements to a player

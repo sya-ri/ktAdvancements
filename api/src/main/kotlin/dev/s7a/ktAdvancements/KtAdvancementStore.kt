@@ -75,7 +75,7 @@ interface KtAdvancementStore<T : KtAdvancement<T>> {
             player: Player,
             progress: Map<T, Int>,
         ) {
-            list.getOrPut(player.uniqueId, ::mutableMapOf).putAll(progress.mapKeys { it.key })
+            list.getOrPut(player.uniqueId, ::mutableMapOf).putAll(progress)
         }
     }
 }
