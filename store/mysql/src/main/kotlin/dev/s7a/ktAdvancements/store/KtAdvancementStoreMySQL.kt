@@ -73,31 +73,7 @@ class KtAdvancementStoreMySQL<T : KtAdvancement<T>>(
 
     override fun getProgress(
         player: Player,
-        advancement: T,
-    ): Int {
-        getConnection().use { connection ->
-            connection
-                .prepareStatement(
-                    """
-                    SELECT `progress` FROM `$tableName` WHERE `advancementId` = ? AND `playerUniqueId` = ?
-                    """.trimIndent(),
-                ).use { statement ->
-                    statement.setString(1, advancement.id.toString())
-                    statement.setString(2, player.uniqueId.toString())
-                    statement.executeQuery().use { result ->
-                        return if (result.next()) {
-                            result.getInt("progress")
-                        } else {
-                            0
-                        }
-                    }
-                }
-        }
-    }
-
-    override fun getProgressAll(
-        player: Player,
-        advancements: Map<NamespacedKey, T>,
+        advancements: List<T>,
     ): Map<T, Int> {
         getConnection().use { connection ->
             connection
@@ -108,10 +84,11 @@ class KtAdvancementStoreMySQL<T : KtAdvancement<T>>(
                 ).use { statement ->
                     statement.setString(1, player.uniqueId.toString())
                     statement.executeQuery().use { result ->
+                        val map = advancements.associateBy(KtAdvancement<*>::id)
                         return buildMap {
                             while (result.next()) {
                                 val advancementId = NamespacedKey.fromString(result.getString("advancementId"))
-                                val advancement = advancements[advancementId]
+                                val advancement = map[advancementId]
                                 if (advancement != null) {
                                     put(advancement, result.getInt("progress"))
                                 } else {

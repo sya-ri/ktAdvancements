@@ -2,7 +2,6 @@ package dev.s7a.ktAdvancements
 
 import dev.s7a.ktAdvancements.runtime.KtAdvancementRuntime
 import org.bukkit.Bukkit
-import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -53,7 +52,7 @@ class KtAdvancements<T : KtAdvancement<T>, S : KtAdvancementStore<T>>(
      * @param player Target player
      * @return Map of advancement to progress
      */
-    fun getAll(player: Player) = store.getProgressAll(player, advancements.associateBy(KtAdvancement<*>::id))
+    fun getAll(player: Player) = store.getProgress(player, advancements)
 
     /**
      * Shows all advancements to a player
@@ -188,13 +187,8 @@ class KtAdvancements<T : KtAdvancement<T>, S : KtAdvancementStore<T>>(
             object : KtAdvancementStore<T> {
                 override fun getProgress(
                     player: Player,
-                    advancement: T,
-                ) = progress[advancement] ?: 0
-
-                override fun getProgressAll(
-                    player: Player,
-                    advancements: Map<NamespacedKey, T>,
-                ) = progress
+                    advancements: List<T>,
+                ) = progress.filterKeys(advancements::contains)
 
                 override fun updateProgress(
                     player: Player,

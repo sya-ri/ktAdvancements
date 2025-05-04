@@ -1,6 +1,5 @@
 package dev.s7a.ktAdvancements
 
-import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
 import java.util.UUID
 
@@ -12,27 +11,15 @@ import java.util.UUID
  */
 interface KtAdvancementStore<T : KtAdvancement<T>> {
     /**
-     * Gets the progress of an advancement
-     *
-     * @param player Player to check
-     * @param advancement Advancement to check
-     * @return Current progress (0 if no progress has been made)
-     */
-    fun getProgress(
-        player: Player,
-        advancement: T,
-    ): Int
-
-    /**
      * Gets all progress for a player
      *
      * @param player Player to check
-     * @param advancements Map of advancement ID to advancement
+     * @param advancements List of advancement
      * @return Map of advancement to progress
      */
-    fun getProgressAll(
+    fun getProgress(
         player: Player,
-        advancements: Map<NamespacedKey, T>,
+        advancements: List<T>,
     ): Map<T, Int>
 
     /**
@@ -63,13 +50,8 @@ interface KtAdvancementStore<T : KtAdvancement<T>> {
 
         override fun getProgress(
             player: Player,
-            advancement: T,
-        ) = list[player.uniqueId]?.get(advancement) ?: 0
-
-        override fun getProgressAll(
-            player: Player,
-            advancements: Map<NamespacedKey, T>,
-        ) = list[player.uniqueId].orEmpty()
+            advancements: List<T>,
+        ) = list[player.uniqueId].orEmpty().filterKeys(advancements::contains)
 
         override fun updateProgress(
             player: Player,
@@ -79,3 +61,15 @@ interface KtAdvancementStore<T : KtAdvancement<T>> {
         }
     }
 }
+
+/**
+ * Gets the progress of an advancement
+ *
+ * @param player Player to check
+ * @param advancement Advancement to check
+ * @return Current progress (0 if no progress has been made)
+ */
+fun <T : KtAdvancement<T>> KtAdvancementStore<T>.getProgress(
+    player: Player,
+    advancement: T,
+) = getProgress(player, listOf(advancement))[advancement] ?: 0
