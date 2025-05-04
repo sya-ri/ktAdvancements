@@ -111,7 +111,7 @@ class YourCustomRuntime : KtAdvancementRuntime {
 3. Create an instance of your custom runtime and use it:
 ```kotlin
 val customRuntime = YourCustomRuntime()
-val ktAdvancements = KtAdvancements(store, customRuntime)
+val ktAdvancements = KtAdvancements(advancements, store, customRuntime)
 ```
 
 ## Usage
@@ -250,7 +250,7 @@ Default in-memory data store:
 
 ```kotlin
 val ktAdvancements = KtAdvancements(
-    Advancement.entries,
+    advancements,
     KtAdvancementStore.InMemory()
 )
 ```
@@ -275,7 +275,7 @@ dependencies {
 ```kotlin
 // Initialize with database path
 val ktAdvancements = KtAdvancements(
-    Advancement.entries, 
+    advancements,
     KtAdvancementStoreSQLite("path/to/database.db")
 )
 
@@ -300,7 +300,7 @@ dependencies {
 ```kotlin
 // Initialize with MySQL connection details
 val ktAdvancements = KtAdvancements(
-    Advancement.entries,
+    advancements,
     KtAdvancementStoreMySQL(
         host = "localhost",
         port = 3306,
