@@ -77,7 +77,6 @@ implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT:mojang-map
 - 1.20.2
 - 1.20.3
 - 1.20.4
-- ~~1.20.5~~ (Not yet supported)
 - 1.20.6
 - 1.21
 - 1.21.1
@@ -120,20 +119,47 @@ val ktAdvancements = KtAdvancements(store, customRuntime)
 ### Creating an Advancement
 
 ```kotlin
-val advancement = KtAdvancement(
-    parent = null, // Optional parent advancement
-    id = NamespacedKey(plugin, "example_advancement"),
-    display = KtAdvancement.Display(
-        x = 0f,
-        y = 0f,
-        icon = ItemStack(Material.DIAMOND),
-        title = "Example Advancement",
-        description = "Complete this example advancement",
-        frame = KtAdvancement.Display.Frame.Task
-    ),
-    requirement = 1, // Number of steps required to complete the advancement
-    visibility = KtAdvancement.Visibility.Always
-)
+enum class Advancement(
+    override val parent: Advancement?,
+    x: Float,
+    y: Float,
+    icon: Material,
+    title: String,
+    description: String,
+    frame: KtAdvancement.Display.Frame = KtAdvancement.Display.Frame.Task,
+    override val requirement: Int = 1,
+    override val visibility: KtAdvancement.Visibility = KtAdvancement.Visibility.Always,
+) : KtAdvancement<Advancement> {
+    HelloWorld(null, 0F, 3F, Material.GRASS_BLOCK, "Hello world", "Join the server"),
+    MineStone(HelloWorld, 0F, 1.5F, Material.STONE, "Mine stone", "Mine 10 stones", requirement = 10),
+    ;
+
+    @Suppress("DEPRECATION")
+    override val id: NamespacedKey
+        get() = NamespacedKey("example", name.lowercase())
+
+    override val display: KtAdvancement.Display =
+        if (parent != null) {
+            KtAdvancement.Display(
+                parent.display.x + x,
+                parent.display.y + y,
+                ItemStack(icon),
+                title,
+                description,
+                frame = frame,
+            )
+        } else {
+            KtAdvancement.Display(
+                x,
+                y,
+                ItemStack(icon),
+                title,
+                description,
+                frame = frame,
+                background = NamespacedKey.minecraft("textures/gui/advancements/backgrounds/adventure.png"),
+            )
+        }
+}
 ```
 
 #### 📊 About Progress Management
@@ -172,10 +198,7 @@ class CustomVisibility : KtAdvancement.Visibility {
 
 ```kotlin
 // Initialize KtAdvancements (runtime will be automatically selected based on version)
-val ktAdvancements = KtAdvancements(KtAdvancementStore.InMemory())
-
-// Register advancement
-ktAdvancements.register(advancement)
+val ktAdvancements = KtAdvancements(Advancement.entries, KtAdvancementStore.InMemory())
 
 // Show all advancements to player (call this when player joins the server)
 ktAdvancements.showAll(player)
@@ -183,15 +206,39 @@ ktAdvancements.showAll(player)
 // Grant advancement to player (complete all steps)
 ktAdvancements.grant(player, advancement)
 
+// Grant all advancements to player
+ktAdvancements.grantAll(player)
+
 // Grant specific step of advancement
 ktAdvancements.grant(player, advancement, step = 1)
 
 // Revoke advancement from player (complete all steps)
 ktAdvancements.revoke(player, advancement)
 
+// Revoke all advancements from player
+ktAdvancements.revokeAll(player)
+
 // Revoke specific step of advancement
 ktAdvancements.revoke(player, advancement, step = 1)
+
+// Set progress of advancement
+ktAdvancements.set(player, advancement, progress = 3)
+
+// Use transaction for atomic updates
+ktAdvancements.transaction(player) {
+    // All operations in this block are atomic
+    grant(advancement1)
+    revoke(advancement2, step = 5)
+    set(advancement3, progress = 2)
+}
 ```
+
+When managing multiple advancements simultaneously, it's recommended to use `transaction` instead of individual method calls. Using `transaction` provides several benefits:
+
+- Packet sending is optimized into a single operation
+- Data store writes are optimized into a single operation
+
+This results in better performance and ensures data integrity.
 
 ### Data Storage
 
@@ -202,7 +249,10 @@ The library provides multiple storage options for advancement progress:
 Default in-memory data store:
 
 ```kotlin
-val ktAdvancements = KtAdvancements(KtAdvancementStore.InMemory())
+val ktAdvancements = KtAdvancements(
+    Advancement.entries,
+    KtAdvancementStore.InMemory()
+)
 ```
 
 #### 🗄️ KtAdvancementStore.SQLite
@@ -224,7 +274,10 @@ dependencies {
 
 ```kotlin
 // Initialize with database path
-val ktAdvancements = KtAdvancements(KtAdvancementStore.SQLite("path/to/database.db"))
+val ktAdvancements = KtAdvancements(
+    Advancement.entries, 
+    KtAdvancementStoreSQLite("path/to/database.db")
+)
 
 // Create a table
 ktAdvancements.store.setup()
@@ -247,7 +300,8 @@ dependencies {
 ```kotlin
 // Initialize with MySQL connection details
 val ktAdvancements = KtAdvancements(
-    KtAdvancementStore.MySQL(
+    Advancement.entries,
+    KtAdvancementStoreMySQL(
         host = "localhost",
         port = 3306,
         database = "minecraft",
@@ -274,15 +328,14 @@ You can create your own data store by implementing `KtAdvancementStore`:
 class CustomStore : KtAdvancementStore {
     override fun getProgress(
         player: Player,
-        advancement: KtAdvancement,
-    ): Int {
+        advancements: List<T>,
+    ): Map<T, Int> {
         TODO("Get progress from your custom storage")
     }
 
-    override fun setProgress(
+    override fun updateProgress(
         player: Player,
-        advancement: KtAdvancement,
-        progress: Int,
+        progress: Map<T, Int>,
     ) {
         TODO("Save progress to your custom storage")
     }
