@@ -349,20 +349,20 @@ class CustomStore : KtAdvancementStore {
 ```mermaid
 graph TD
     subgraph API[API Modules]
-        E[ktAdvancements-api]
+        A[ktAdvancements-api]
     end
 
     subgraph Runtime[Runtime Modules]
-        G[ktAdvancements-runtime] -->|"bundle all versions"| H[ktAdvancements-runtime-vX_X_X]
-        K[ktAdvancements-runtime-mojang] -->|"bundle all versions"| L[ktAdvancements-runtime-vX_X_X<br>mojang-mapped]
+        B[ktAdvancements-runtime] -->|"bundle all versions"| C[ktAdvancements-runtime-vX_X_X]
+        D[ktAdvancements-runtime-mojang] -->|"bundle all versions"| E[ktAdvancements-runtime-vX_X_X<br>mojang-mapped]
     end
 
     subgraph Store[Store Modules]
-        S[ktAdvancements-store-XXX] --> E
+        F[ktAdvancements-store-XXX] --> A
     end
 
-    H --> E
-    L --> E
+    C --> A
+    E --> A
 ```
 
 The library is divided into several modules with the following dependencies:
