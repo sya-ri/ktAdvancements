@@ -127,7 +127,7 @@ interface KtAdvancement<Impl : KtAdvancement<Impl>> {
                 advancement: T,
                 store: KtAdvancementStore<T>,
                 player: Player,
-            ) = advancement.isGranted(store.getProgress(player, advancement))
+            ) = advancement.isGranted(store, player)
         }
 
         /**
