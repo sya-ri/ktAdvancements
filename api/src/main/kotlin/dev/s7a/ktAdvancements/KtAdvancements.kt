@@ -230,7 +230,7 @@ class KtAdvancements<T : KtAdvancement<T>, S : KtAdvancementStore<T>>(
          * Grants all advancements
          */
         fun grantAll() {
-            progress.keys.forEach { advancement ->
+            advancements.forEach { advancement ->
                 progress[advancement] = advancement.requirement
             }
         }
