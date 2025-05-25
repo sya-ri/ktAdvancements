@@ -228,15 +228,11 @@ class KtAdvancements<T : KtAdvancement<T>, S : KtAdvancementStore<T>>(
 
         /**
          * Grants all advancements
-         *
-         * @return true if any advancement was granted
          */
-        fun grantAll(): Boolean {
-            if (progress.isEmpty()) return false
+        fun grantAll() {
             progress.keys.forEach { advancement ->
                 progress[advancement] = advancement.requirement
             }
-            return true
         }
 
         /**
@@ -256,15 +252,11 @@ class KtAdvancements<T : KtAdvancement<T>, S : KtAdvancementStore<T>>(
 
         /**
          * Revokes all advancements
-         *
-         * @return true if any advancement was revoked
          */
-        fun revokeAll(): Boolean {
-            if (progress.isEmpty()) return false
+        fun revokeAll() {
             progress.keys.forEach { advancement ->
                 progress[advancement] = 0
             }
-            return true
         }
 
         /**
