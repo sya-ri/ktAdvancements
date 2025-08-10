@@ -2,6 +2,7 @@
 kotlin = "2.1.10"
 paperweight = "2.0.0-beta.17"
 minecraft-server = "3.2.1"
+shadow = "9.0.1"
 spigot = "1.17-R0.1-SNAPSHOT"
 sqlite-jdbc = "3.49.1.0"
 mysql-connector-j = "9.3.0"
@@ -10,6 +11,7 @@ mysql-connector-j = "9.3.0"
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 paperweight-userdev = { id = "io.papermc.paperweight.userdev", version.ref = "paperweight" }
 minecraft-server = { id = "dev.s7a.gradle.minecraft.server", version.ref = "minecraft-server" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 
 [libraries]
 spigot-api = { group = "org.spigotmc", name = "spigot-api", version.ref = "spigot" }

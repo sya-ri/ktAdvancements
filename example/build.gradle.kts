@@ -3,6 +3,7 @@ import dev.s7a.gradle.minecraft.server.tasks.LaunchMinecraftServerTask.JarUrl
 
 plugins {
     alias(libs.plugins.minecraft.server)
+    alias(libs.plugins.shadow)
 }
 
 dependencies {
@@ -11,6 +12,8 @@ dependencies {
     implementation(project(":api"))
     implementation(project(":runtime"))
 }
+
+tasks["build"].dependsOn("shadowJar")
 
 listOf(
     "17" to "1.17.1",
