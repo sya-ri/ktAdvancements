@@ -52,7 +52,7 @@ class KtAdvancements<T : KtAdvancement<T>, S : KtAdvancementStore<T>>(
      * @param player Target player
      * @return Map of advancement to progress
      */
-    fun getAll(player: Player) = store.getProgress(player, advancements)
+    fun getAll(player: Player) = advancements.associateWith { 0 } + store.getProgress(player, advancements)
 
     /**
      * Shows all advancements to a player
