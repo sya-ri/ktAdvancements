@@ -6,11 +6,15 @@ plugins {
     alias(libs.plugins.shadow)
 }
 
+repositories {
+    mavenLocal()
+}
+
 dependencies {
     compileOnly(libs.spigot.api)
 
-    implementation(project(":api"))
-    implementation(project(":runtime"))
+    implementation("dev.s7a:ktAdvancements-api:1.0.0-SNAPSHOT")
+    implementation("dev.s7a:ktAdvancements-runtime:1.0.0-SNAPSHOT")
 }
 
 tasks["build"].dependsOn("shadowJar")
@@ -45,7 +49,7 @@ listOf(
                 from(
                     layout.buildDirectory.asFile
                         .get()
-                        .resolve("libs/${project.name}.jar"),
+                        .resolve("libs/${project.name}-all.jar"),
                 )
                 into(
                     layout.buildDirectory.asFile
