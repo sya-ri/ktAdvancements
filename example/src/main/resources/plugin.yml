@@ -1,0 +1,4 @@
+name: KtAdvancementExample
+main: dev.s7a.ktAdvancements.example.ExamplePlugin
+author: sya_ri
+version: dev
