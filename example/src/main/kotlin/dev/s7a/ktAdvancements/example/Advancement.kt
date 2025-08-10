@@ -17,7 +17,7 @@ enum class Advancement(
     override val visibility: KtAdvancement.Visibility = KtAdvancement.Visibility.Always,
 ) : KtAdvancement<Advancement> {
     HelloWorld(null, 0F, 3F, Material.GRASS_BLOCK, "Hello world", "Join the server"),
-    MineStone(HelloWorld, 0F, 1.5F, Material.STONE, "Mine stone", "Mine 10 stones", requirement = 10),
+    MineStone(HelloWorld, 1.5F, 0F, Material.STONE, "Mine stone", "Mine 10 stones", requirement = 10),
     ;
 
     @Suppress("DEPRECATION")

@@ -19,7 +19,14 @@ class ExamplePlugin : JavaPlugin() {
                 @EventHandler
                 fun on(event: PlayerJoinEvent) {
                     val player = event.player
-                    ktAdvancements.grant(player, Advancement.HelloWorld)
+                    server.scheduler.runTaskLater(
+                        this@ExamplePlugin,
+                        Runnable {
+                            ktAdvancements.showAll(player)
+                            ktAdvancements.grant(player, Advancement.HelloWorld)
+                        },
+                        5L,
+                    )
                 }
 
                 @EventHandler
