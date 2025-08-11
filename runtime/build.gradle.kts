@@ -3,12 +3,14 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     `maven-publish`
+    signing
     alias(libs.plugins.paperweight.userdev) apply false
 }
 
 subprojects {
     apply(plugin = "io.papermc.paperweight.userdev")
     apply(plugin = "maven-publish")
+    apply(plugin = "signing")
 
     val name = project.name.drop(1)
 
@@ -41,42 +43,32 @@ subprojects {
         from(sourceSets["main"].allSource)
     }
 
-    publishing {
-        publications {
-            create<MavenPublication>("maven") {
-                groupId = "dev.s7a"
-                artifactId = "ktAdvancements-runtime-v$name"
-                version = rootProject.version.toString()
-                artifact(tasks.named("reobfJar"))
-                artifact(sourceJar.get())
-                artifact(tasks.jar).classifier = "mojang-mapped"
-            }
-        }
-    }
+    applyPublishingConfig(
+        "ktAdvancements-runtime-v$name",
+        publication = {
+            artifact(tasks.named("reobfJar"))
+            artifact(sourceJar.get())
+            artifact(tasks.jar).classifier = "mojang-mapped"
+        },
+    )
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            groupId = "dev.s7a"
-            artifactId = "ktAdvancements-runtime"
-            version = rootProject.version.toString()
-            pom {
-                withXml {
-                    asNode().appendNode("dependencies").apply {
-                        rootProject.subprojects.forEach {
-                            if (it.path.startsWith(":runtime:")) {
-                                appendNode("dependency").apply {
-                                    appendNode("groupId", "dev.s7a")
-                                    appendNode("artifactId", "ktAdvancements-runtime-${it.name}")
-                                    appendNode("version", rootProject.version.toString())
-                                    appendNode("scope", "compile")
-                                }
-                            }
+applyPublishingConfig(
+    "ktAdvancements-runtime",
+    pom = {
+        withXml {
+            asNode().appendNode("dependencies").apply {
+                rootProject.subprojects.forEach {
+                    if (it.path.startsWith(":runtime:")) {
+                        appendNode("dependency").apply {
+                            appendNode("groupId", "dev.s7a")
+                            appendNode("artifactId", "ktAdvancements-runtime-${it.name}")
+                            appendNode("version", rootProject.version.toString())
+                            appendNode("scope", "compile")
                         }
                     }
                 }
             }
         }
-    }
-}
+    },
+)

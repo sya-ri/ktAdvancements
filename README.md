@@ -22,7 +22,7 @@ This library requires API and Runtime components. Add the following to your `bui
 
 ```kotlin
 repositories {
-    mavenLocal()  // Use this after running ./gradlew publishToMavenLocal
+    maven(url = "https://central.sonatype.com/repository/maven-snapshots/")
 }
 
 dependencies {

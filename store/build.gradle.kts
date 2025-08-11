@@ -1,5 +1,6 @@
 subprojects {
     apply(plugin = "maven-publish")
+    apply(plugin = "signing")
 
     dependencies {
         implementation(project(":api"))
@@ -12,15 +13,11 @@ subprojects {
         from(sourceSets["main"].allSource)
     }
 
-    configure<PublishingExtension> {
-        publications {
-            create<MavenPublication>("maven") {
-                groupId = "dev.s7a"
-                artifactId = "ktAdvancements-store-${project.name}"
-                version = rootProject.version.toString()
-                from(components["kotlin"])
-                artifact(sourceJar.get())
-            }
-        }
-    }
+    applyPublishingConfig(
+        "ktAdvancements-store-${project.name}",
+        publication = {
+            from(components["kotlin"])
+            artifact(sourceJar.get())
+        },
+    )
 }
