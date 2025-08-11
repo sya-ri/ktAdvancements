@@ -15,8 +15,9 @@ enum class Advancement(
     frame: KtAdvancement.Display.Frame = KtAdvancement.Display.Frame.Task,
     override val requirement: Int = 1,
     override val visibility: KtAdvancement.Visibility = KtAdvancement.Visibility.Always,
+    override val defaultGranted: Boolean = false,
 ) : KtAdvancement<Advancement> {
-    HelloWorld(null, 0F, 3F, Material.GRASS_BLOCK, "Hello world", "Join the server"),
+    HelloWorld(null, 0F, 3F, Material.GRASS_BLOCK, "Hello world", "Join the server", defaultGranted = true),
     MineStone(HelloWorld, 1.5F, 0F, Material.STONE, "Mine stone", "Mine 10 stones", requirement = 10),
     ;
 

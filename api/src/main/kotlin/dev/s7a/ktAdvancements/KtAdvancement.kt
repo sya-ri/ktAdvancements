@@ -37,6 +37,11 @@ interface KtAdvancement<Impl : KtAdvancement<Impl>> {
     val visibility: Visibility
 
     /**
+     * Whether the advancement is granted by default
+     */
+    val defaultGranted: Boolean
+
+    /**
      * Display information for an advancement
      *
      * @param x X coordinate

@@ -23,7 +23,6 @@ class ExamplePlugin : JavaPlugin() {
                         this@ExamplePlugin,
                         Runnable {
                             ktAdvancements.showAll(player)
-                            ktAdvancements.grant(player, Advancement.HelloWorld)
                         },
                         5L,
                     )
