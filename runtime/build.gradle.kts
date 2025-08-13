@@ -43,12 +43,25 @@ subprojects {
         from(sourceSets["main"].allSource)
     }
 
+    tasks.assemble {
+        dependsOn(tasks.named("reobfJar"))
+    }
+
     applyPublishingConfig(
         "ktAdvancements-runtime-v$name",
         publication = {
-            artifact(tasks.named("reobfJar"))
+            artifact(
+                layout.buildDirectory.file(
+                    "libs/${project.name}-${project.version}-reobf.jar",
+                ),
+            ) {
+                // spigot-mapped
+                builtBy(tasks.named("reobfJar"))
+            }
             artifact(sourceJar.get())
-            artifact(tasks.jar).classifier = "mojang-mapped"
+            artifact(tasks.jar) {
+                classifier = "mojang-mapped"
+            }
         },
     )
 }
