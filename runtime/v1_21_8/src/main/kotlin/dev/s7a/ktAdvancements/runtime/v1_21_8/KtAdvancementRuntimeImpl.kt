@@ -56,6 +56,9 @@ class KtAdvancementRuntimeImpl : KtAdvancementRuntime {
 
     private fun NamespacedKey.location() = ResourceLocation.fromNamespaceAndPath(namespace, key)
 
+    private fun NamespacedKey.clientAsset() =
+        ClientAsset(NamespacedKey(namespace, key.removePrefix("textures/").removeSuffix(".png")).location())
+
     private fun KtAdvancement<*>.convert() =
         Advancement(
             parent?.let { Optional.of(it.id.location()) } ?: Optional.empty(),
@@ -71,7 +74,7 @@ class KtAdvancementRuntimeImpl : KtAdvancementRuntime {
             CraftItemStack.asNMSCopy(display.icon),
             CraftChatMessage.fromStringOrNull(display.title),
             CraftChatMessage.fromStringOrNull(display.description),
-            display.background?.let { Optional.of(ClientAsset(it.location())) } ?: Optional.empty(),
+            display.background?.let { Optional.of(it.clientAsset()) } ?: Optional.empty(),
             display.frame.type(),
             display.showToast,
             false,
