@@ -88,6 +88,7 @@ implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT:mojang-map
 - 1.21.8
 - 1.21.9
 - 1.21.10
+- 1.21.11
 
 ### 3. Custom Runtime
 If your target version is not supported, you can create your own runtime:
