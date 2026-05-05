@@ -27,7 +27,7 @@ class KtAdvancements<T : KtAdvancement<T>, S : KtAdvancementStore<T>>(
         if (runtime != null) {
             this.runtime = runtime
         } else {
-            val version = Bukkit.getBukkitVersion().substringBefore('-')
+            val version = Bukkit.getBukkitVersion().runtimeVersion()
             try {
                 val name = "v" + version.replace('.', '_')
                 val clazz = Class.forName("${KtAdvancementRuntime::class.java.packageName}.$name.KtAdvancementRuntimeImpl")
@@ -38,6 +38,12 @@ class KtAdvancements<T : KtAdvancement<T>, S : KtAdvancementStore<T>>(
             }
         }
     }
+
+    private fun String.runtimeVersion() =
+        substringBefore('-')
+            .split('.')
+            .takeWhile { it.all(Char::isDigit) }
+            .joinToString(".")
 
     /**
      * Gets all advancements
