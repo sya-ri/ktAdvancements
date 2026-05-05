@@ -44,25 +44,31 @@ This library provides multiple runtime options to suit different needs. For more
 ### 1. Multi-Version Runtime (Recommended)
 Use this if you need to support multiple Minecraft versions:
 ```kotlin
-// For Spigot plugins
+// For Spigot plugins up to 1.21.11, and Paper plugins for every supported version
 implementation("dev.s7a:ktAdvancements-runtime:1.0.0-SNAPSHOT")
 
-// For Paper plugins (mojang-mapped)
+// For Paper plugins (mojang-mapped for every supported version)
 implementation("dev.s7a:ktAdvancements-runtime-mojang:1.0.0-SNAPSHOT")
 ```
 
 ### 2. Version-Specific Runtime
 Use this if you only need to support a specific Minecraft version:
 ```kotlin
-// For Spigot plugins
+// For Spigot/Paper plugins up to 1.21.11
 implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT")
 
-// For Paper plugins (mojang-mapped)
+// For Paper plugins
 implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT:mojang-mapped")
+```
+
+For Minecraft `26.1+`, version-specific runtimes are Paper-only:
+```kotlin
+implementation("dev.s7a:ktAdvancements-runtime-v26_1:1.0.0-SNAPSHOT")
 ```
 
 #### Supported versions
 
+Spigot/Paper:
 - 1.17.1
 - 1.18
 - 1.18.1
@@ -89,6 +95,10 @@ implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT:mojang-map
 - 1.21.9
 - 1.21.10
 - 1.21.11
+
+Paper only:
+- 26.1
+- 26.1.1
 
 ### 3. Custom Runtime
 If your target version is not supported, you can create your own runtime:
