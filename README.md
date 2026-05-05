@@ -63,7 +63,7 @@ implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT:mojang-map
 
 For Minecraft `26.1+`, version-specific runtimes are Paper-only:
 ```kotlin
-implementation("dev.s7a:ktAdvancements-runtime-v26_1:1.0.0-SNAPSHOT")
+implementation("dev.s7a:ktAdvancements-runtime-v26_1_2:1.0.0-SNAPSHOT")
 ```
 
 #### Supported versions
@@ -97,8 +97,7 @@ Spigot/Paper:
 - 1.21.11
 
 Paper only:
-- 26.1
-- 26.1.1
+- 26.1.2
 
 ### 3. Custom Runtime
 If your target version is not supported, you can create your own runtime:

@@ -49,8 +49,7 @@ listOf(
     "21_8" to "1.21.8",
     "21_9" to "1.21.9",
     "21_10" to "1.21.10",
-    "26_1" to "26.1",
-    "26_1_1" to "26.1.1",
+    "26_1_2" to "26.1.2",
 ).forEach { (name, version) ->
     tasks.register<LaunchMinecraftServerTask>("testPlugin$name") {
         dependsOn("build")

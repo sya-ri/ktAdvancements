@@ -1,6 +1,6 @@
 @file:Suppress("ktlint:standard:package-name")
 
-package dev.s7a.ktAdvancements.runtime.v26_1_1
+package dev.s7a.ktAdvancements.runtime.v26_1_2
 
 import dev.s7a.ktAdvancements.KtAdvancement
 import dev.s7a.ktAdvancements.criteria
@@ -17,6 +17,7 @@ import net.minecraft.advancements.criterion.ImpossibleTrigger
 import net.minecraft.core.ClientAsset
 import net.minecraft.network.protocol.game.ClientboundUpdateAdvancementsPacket
 import net.minecraft.resources.Identifier
+import net.minecraft.world.item.ItemStackTemplate
 import org.bukkit.NamespacedKey
 import org.bukkit.craftbukkit.entity.CraftPlayer
 import org.bukkit.craftbukkit.inventory.CraftItemStack
@@ -71,7 +72,7 @@ class KtAdvancementRuntimeImpl : KtAdvancementRuntime {
 
     private fun KtAdvancement<*>.display() =
         DisplayInfo(
-            CraftItemStack.asNMSCopy(display.icon),
+            ItemStackTemplate.fromNonEmptyStack(CraftItemStack.asNMSCopy(display.icon)),
             CraftChatMessage.fromStringOrNull(display.title),
             CraftChatMessage.fromStringOrNull(display.description),
             display.background?.let { Optional.of(it.clientAsset()) } ?: Optional.empty(),
