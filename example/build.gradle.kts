@@ -14,7 +14,11 @@ dependencies {
     compileOnly(libs.spigot.api)
 
     implementation(project(":api"))
-    implementation(project(":runtime"))
+    rootProject.subprojects
+        .filter { it.path.startsWith(":runtime:") }
+        .forEach {
+            implementation(project(it.path))
+        }
 }
 
 tasks["build"].dependsOn("shadowJar")
