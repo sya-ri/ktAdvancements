@@ -1,11 +1,11 @@
 [versions]
-kotlin = "2.1.10"
+kotlin = "2.3.21"
 paperweight = "2.0.0-beta.21"
-minecraft-server = "4.0.1"
-shadow = "9.0.1"
-spigot = "1.17-R0.1-SNAPSHOT"
-sqlite-jdbc = "3.49.1.0"
-mysql-connector-j = "9.3.0"
+minecraft-server = "4.0.2"
+shadow = "9.4.1"
+spigot = "26.1.2-R0.1-SNAPSHOT"
+sqlite-jdbc = "3.53.0.0"
+mysql-connector-j = "9.7.0"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
