@@ -59,6 +59,11 @@ subprojects {
         from(sourceSets["main"].allSource)
     }
 
+    tasks.named("reobfJar") {
+        // Paper-only runtimes do not ship reobf mappings, so this task must stay out of the graph.
+        enabled = paperOnlyRuntime.not()
+    }
+
     tasks.assemble {
         dependsOn(
             if (paperOnlyRuntime) {

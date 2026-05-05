@@ -1,0 +1,4 @@
+interface:
+  display_name: "ktAdvancements"
+  short_description: "Use ktAdvancements in Kotlin plugin code"
+  default_prompt: "Use $ktadvancements to add or fix Kotlin Bukkit, Spigot, or Paper plugin code built on ktAdvancements."

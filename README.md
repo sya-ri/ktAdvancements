@@ -37,6 +37,25 @@ dependencies {
 - For other runtime options, see the [Runtime Options](#runtime-options) section below.
 - For storage options, see the [Data Storage](#data-storage) section below.
 
+## Agent Skill
+
+This repository also includes a distributable agent skill at `skills/ktadvancements`.
+It is written for general AI agents, not just Codex, and summarizes how to use ktAdvancements in Kotlin Bukkit, Spigot, and Paper projects.
+
+### Install with `gh skill`
+
+```bash
+gh skill preview sya-ri/ktAdvancements skills/ktadvancements
+```
+
+### Install with `npx skills`
+
+```bash
+npx skills add sya-ri/ktAdvancements --skill ktadvancements
+```
+
+After installing, restart the agent tool so it reloads available skills.
+
 ## Runtime Options
 
 This library provides multiple runtime options to suit different needs. For more information about Mojang-mapped vs Spigot-mapped runtimes, see the [Mojang-mapped vs Spigot-mapped](#mojang-mapped-vs-spigot-mapped) section.

@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.shadow)
 }
 
+fun isPaperOnlyRuntime(versionName: String) = "26_1" <= versionName
+
 repositories {
     mavenLocal()
 }
@@ -17,7 +19,15 @@ dependencies {
     rootProject.subprojects
         .filter { it.path.startsWith(":runtime:") }
         .forEach {
-            implementation(project(it.path))
+            val versionName = it.name.drop(1)
+            implementation(
+                project(
+                    mapOf(
+                        "path" to it.path,
+                        "configuration" to if (isPaperOnlyRuntime(versionName)) "default" else "reobf",
+                    ),
+                ),
+            )
         }
 }
 
