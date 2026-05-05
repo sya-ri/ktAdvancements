@@ -13,8 +13,8 @@ repositories {
 dependencies {
     compileOnly(libs.spigot.api)
 
-    implementation("dev.s7a:ktAdvancements-api:1.0.0-SNAPSHOT")
-    implementation("dev.s7a:ktAdvancements-runtime:1.0.0-SNAPSHOT")
+    implementation(project(":api"))
+    implementation(project(":runtime"))
 }
 
 tasks["build"].dependsOn("shadowJar")
