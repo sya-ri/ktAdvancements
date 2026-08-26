@@ -1,15 +1,28 @@
 import dev.s7a.gradle.minecraft.server.tasks.LaunchMinecraftServerTask
 import dev.s7a.gradle.minecraft.server.tasks.LaunchMinecraftServerTask.JarUrl
+import org.gradle.api.attributes.java.TargetJvmVersion
 
 plugins {
     alias(libs.plugins.minecraft.server)
     alias(libs.plugins.shadow)
 }
 
-fun isPaperOnlyRuntime(versionName: String) = "26_1" <= versionName
+fun usesUnobfuscatedJar(versionName: String): Boolean {
+    val versionParts = versionName.split('_').map(String::toInt)
+    return versionParts[0] > 26 ||
+        (versionParts[0] == 26 && versionParts[1] >= 1)
+}
 
 repositories {
     mavenLocal()
+}
+
+listOf("runtimeClasspath", "testRuntimeClasspath").forEach {
+    configurations.named(it) {
+        attributes {
+            attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 25)
+        }
+    }
 }
 
 dependencies {
@@ -20,11 +33,11 @@ dependencies {
         .filter { it.path.startsWith(":runtime:") }
         .forEach {
             val versionName = it.name.drop(1)
-            implementation(
+            runtimeOnly(
                 project(
                     mapOf(
                         "path" to it.path,
-                        "configuration" to if (isPaperOnlyRuntime(versionName)) "default" else "reobf",
+                        "configuration" to if (usesUnobfuscatedJar(versionName)) "default" else "reobf",
                     ),
                 ),
             )
@@ -59,7 +72,10 @@ listOf(
     "21_8" to "1.21.8",
     "21_9" to "1.21.9",
     "21_10" to "1.21.10",
+    "21_11" to "1.21.11",
+    "26_1_1" to "26.1.1",
     "26_1_2" to "26.1.2",
+    "26_2" to "26.2",
 ).forEach { (name, version) ->
     tasks.register<LaunchMinecraftServerTask>("testPlugin$name") {
         dependsOn("build")

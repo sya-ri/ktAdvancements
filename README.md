@@ -63,10 +63,10 @@ This library provides multiple runtime options to suit different needs. For more
 ### 1. Multi-Version Runtime (Recommended)
 Use this if you need to support multiple Minecraft versions:
 ```kotlin
-// For Spigot plugins up to 1.21.11, and Paper plugins for every supported version
+// Spigot-mapped through 1.21.11; unobfuscated from 26.1 onward
 implementation("dev.s7a:ktAdvancements-runtime:1.0.0-SNAPSHOT")
 
-// For Paper plugins (mojang-mapped for every supported version)
+// Mojang-mapped through 1.21.11; the same unobfuscated artifacts from 26.1 onward
 implementation("dev.s7a:ktAdvancements-runtime-mojang:1.0.0-SNAPSHOT")
 ```
 
@@ -80,10 +80,12 @@ implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT")
 implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT:mojang-mapped")
 ```
 
-For Minecraft `26.1+`, version-specific runtimes are Paper-only:
+For Minecraft `26.1+`, Spigot and Paper use the same normal unobfuscated runtime artifact:
 ```kotlin
 implementation("dev.s7a:ktAdvancements-runtime-v26_1_2:1.0.0-SNAPSHOT")
 ```
+
+The 26.1, 26.1.1, and 26.1.2 runtime modules compile against Paper's 26.1.2 dev bundle because Paper does not publish an exact 26.1 bundle. [Spigot documents the 26.1.2 server as fully compatible with the earlier 26.1 releases](https://www.spigotmc.org/threads/spigot-bungeecord-26-1-26-1-1-26-1-2.718646/).
 
 #### Supported versions
 
@@ -114,9 +116,10 @@ Spigot/Paper:
 - 1.21.9
 - 1.21.10
 - 1.21.11
-
-Paper only:
+- 26.1
+- 26.1.1
 - 26.1.2
+- 26.2
 
 ### 3. Custom Runtime
 If your target version is not supported, you can create your own runtime:
@@ -387,8 +390,9 @@ graph TD
     end
 
     subgraph Runtime[Runtime Modules]
-        B[ktAdvancements-runtime] -->|"bundle all versions"| C[ktAdvancements-runtime-vX_X_X]
-        D[ktAdvancements-runtime-mojang] -->|"bundle all versions"| E[ktAdvancements-runtime-vX_X_X<br>mojang-mapped]
+        B[ktAdvancements-runtime] -->|"all versions"| C[ktAdvancements-runtime-vX_X_X<br>default artifact]
+        D[ktAdvancements-runtime-mojang] -->|"through 1.21.11"| E[ktAdvancements-runtime-vX_X_X<br>mojang-mapped classifier]
+        D -->|"26.1 and later"| C
     end
 
     subgraph Store[Store Modules]
@@ -405,10 +409,11 @@ The library is divided into several modules with the following dependencies:
    - `ktAdvancements-api`: Core advancement data structures and runtime interface definitions
 
 2. **Runtime Modules**: Version-specific implementations
-   - `ktAdvancements-runtime`: Aggregates all Spigot runtimes (bundle all versions)
-   - `ktAdvancements-runtime-mojang`: Aggregates all Mojang-mapped runtimes (bundle all versions)
+   - `ktAdvancements-runtime`: Aggregates Spigot-mapped runtimes through 1.21.11 and unobfuscated runtimes from 26.1 onward
+   - `ktAdvancements-runtime-mojang`: Aggregates Mojang-mapped runtimes through 1.21.11 and the same unobfuscated runtimes from 26.1 onward
    - Each version has its own runtime module (e.g., `ktAdvancements-runtime-vX_X_X`)
-   - Mojang-mapped versions use the `mojang-mapped` classifier
+   - Through 1.21.11, Mojang-mapped runtime artifacts use the `mojang-mapped` classifier
+   - From 26.1 onward, both aggregators use the version module's normal JAR without a classifier
 
 3. **Store Modules**: Data storage implementations
    - `ktAdvancements-store-sqlite`: SQLite-based persistent storage
@@ -416,16 +421,20 @@ The library is divided into several modules with the following dependencies:
 
 ### Mojang-mapped vs Spigot-mapped
 
-As of 1.20.5, Paper ships with a Mojang-mapped runtime instead of re-obfuscating the server to Spigot mappings. Additionally, CraftBukkit classes will no longer be relocated into a versioned package. This requires plugins to be deobfuscated before loading when necessary.
+From 1.20.5 through 1.21.11, Paper ships with a Mojang-mapped runtime instead of re-obfuscating the server to Spigot mappings. Additionally, CraftBukkit classes are no longer relocated into a versioned package. Plugins that use server internals therefore need the artifact matching the server's mappings namespace.
 
 Most of this process is done automatically by paperweight, but there are some important things to know when using server internals (or "NMS") from now on:
 
-- **Default mappings assumption**:
+- **Minecraft 1.20.5 through 1.21.11**:
   - By default, all Spigot/Bukkit plugins will be assumed to be Spigot-mapped if they do not specify their mappings namespace in the manifest
   - All Paper plugins will be assumed to be Mojang-mapped if they do not specify their mappings namespace in the manifest
   - Spigot-mapped plugins will need to be deobfuscated on first load, Mojang-mapped plugins will not
+- **Minecraft 26.1 and later**:
+  - Minecraft server distributions are unobfuscated, so there is no separate Spigot-mapped runtime artifact and no re-obfuscation step
+  - `reobfJar` is not used; each version module publishes its unobfuscated normal JAR
+  - `ktAdvancements-runtime` and `ktAdvancements-runtime-mojang` both depend on that same normal JAR for these versions, without the `mojang-mapped` classifier
 
-For more details, please refer to the [Paper documentation](https://docs.papermc.io/paper/dev/userdev/#1205-and-beyond).
+For more details, please refer to the [Paper userdev documentation](https://docs.papermc.io/paper/dev/userdev/#1205-and-beyond) and the [Paper 26.1 announcement](https://papermc.io/news/26-1/).
 
 ## License
 

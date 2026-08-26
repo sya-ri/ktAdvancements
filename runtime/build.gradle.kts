@@ -2,13 +2,28 @@ import io.papermc.paperweight.userdev.PaperweightUserDependenciesExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 
+data class MinecraftVersion(
+    val major: Int,
+    val minor: Int,
+    val patch: Int = 0,
+) : Comparable<MinecraftVersion> {
+    override fun compareTo(other: MinecraftVersion): Int =
+        compareValuesBy(this, other, MinecraftVersion::major, MinecraftVersion::minor, MinecraftVersion::patch)
+
+    companion object {
+        fun parse(value: String): MinecraftVersion {
+            val parts = value.split('_').map(String::toInt)
+            require(parts.size in 2..3) { "Unsupported Minecraft version: $value" }
+            return MinecraftVersion(parts[0], parts[1], parts.getOrElse(2) { 0 })
+        }
+    }
+}
+
 plugins {
     `maven-publish`
     signing
     alias(libs.plugins.paperweight.userdev) apply false
 }
-
-fun isPaperOnlyRuntime(versionName: String) = "26_1" <= versionName
 
 subprojects {
     apply(plugin = "io.papermc.paperweight.userdev")
@@ -16,24 +31,34 @@ subprojects {
     apply(plugin = "signing")
 
     val name = project.name.drop(1)
-    val paperOnlyRuntime = isPaperOnlyRuntime(name)
-    val jvmVersion =
+    val minecraftVersion = MinecraftVersion.parse(name)
+    val minecraftVersion1_20_5 = MinecraftVersion(1, 20, 5)
+    val minecraftVersion26_1 = MinecraftVersion(26, 1)
+    val javaVersionNumber =
         when {
-            paperOnlyRuntime -> 25
-            "1_20_5" <= name -> 21
+            minecraftVersion >= minecraftVersion26_1 -> 25
+            minecraftVersion >= minecraftVersion1_20_5 -> 21
             else -> 17
+        }
+    val javaVersion = JavaVersion.toVersion(javaVersionNumber)
+    val usesUnobfuscatedJar = minecraftVersion >= minecraftVersion26_1
+    val paperVersion =
+        when {
+            name in setOf("26_1", "26_1_1", "26_1_2") -> "26.1.2.build.+"
+            usesUnobfuscatedJar -> "${name.replace('_', '.')}.build.+"
+            else -> "${name.replace('_', '.')}-R0.1-SNAPSHOT"
         }
 
     java {
-        toolchain.languageVersion.set(JavaLanguageVersion.of(jvmVersion))
-        sourceCompatibility = JavaVersion.toVersion(jvmVersion)
-        targetCompatibility = JavaVersion.toVersion(jvmVersion)
+        toolchain.languageVersion.set(JavaLanguageVersion.of(javaVersionNumber))
+        sourceCompatibility = javaVersion
+        targetCompatibility = javaVersion
     }
 
     kotlin {
-        jvmToolchain(jvmVersion)
+        jvmToolchain(javaVersionNumber)
         compilerOptions {
-            jvmTarget.set(JvmTarget.fromTarget(jvmVersion.toString()))
+            jvmTarget.set(JvmTarget.fromTarget(javaVersionNumber.toString()))
         }
     }
 
@@ -45,13 +70,7 @@ subprojects {
     dependencies {
         implementation(project(":api"))
 
-        extensions.getByType<PaperweightUserDependenciesExtension>().paperDevBundle(
-            if (paperOnlyRuntime) {
-                "${name.replace('_', '.')}.build.+"
-            } else {
-                "${name.replace('_', '.')}-R0.1-SNAPSHOT"
-            },
-        )
+        extensions.getByType<PaperweightUserDependenciesExtension>().paperDevBundle(paperVersion)
     }
 
     val sourceJar by tasks.registering(Jar::class) {
@@ -59,26 +78,16 @@ subprojects {
         from(sourceSets["main"].allSource)
     }
 
-    tasks.named("reobfJar") {
-        // Paper-only runtimes do not ship reobf mappings, so this task must stay out of the graph.
-        enabled = paperOnlyRuntime.not()
-    }
-
-    tasks.assemble {
-        dependsOn(
-            if (paperOnlyRuntime) {
-                tasks.named("jar")
-            } else {
-                tasks.named("reobfJar")
-            },
-        )
+    if (!usesUnobfuscatedJar) {
+        tasks.assemble {
+            dependsOn(tasks.named("reobfJar"))
+        }
     }
 
     applyPublishingConfig(
         "ktAdvancements-runtime-v$name",
         publication = {
-            if (paperOnlyRuntime) {
-                // 26.1+ no longer has a Spigot-mapped production artifact.
+            if (usesUnobfuscatedJar) {
                 artifact(tasks.jar)
             } else {
                 artifact(
@@ -89,11 +98,11 @@ subprojects {
                     // spigot-mapped
                     builtBy(tasks.named("reobfJar"))
                 }
+                artifact(tasks.jar) {
+                    classifier = "mojang-mapped"
+                }
             }
             artifact(sourceJar.get())
-            artifact(tasks.jar) {
-                classifier = "mojang-mapped"
-            }
         },
     )
 }
@@ -105,15 +114,10 @@ applyPublishingConfig(
             asNode().appendNode("dependencies").apply {
                 rootProject.subprojects.forEach {
                     if (it.path.startsWith(":runtime:")) {
-                        val versionName = it.name.drop(1)
                         appendNode("dependency").apply {
                             appendNode("groupId", "dev.s7a")
                             appendNode("artifactId", "ktAdvancements-runtime-${it.name}")
                             appendNode("version", rootProject.version.toString())
-                            if (isPaperOnlyRuntime(versionName)) {
-                                // 26.1+ is Paper-only even in the generic runtime aggregate.
-                                appendNode("classifier", "mojang-mapped")
-                            }
                             appendNode("scope", "compile")
                         }
                     }

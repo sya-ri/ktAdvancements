@@ -3,8 +3,6 @@ plugins {
     signing
 }
 
-fun isPaperOnlyRuntime(versionName: String) = "26_1" <= versionName
-
 applyPublishingConfig(
     "ktAdvancements-runtime-mojang",
     pom = {
@@ -12,13 +10,16 @@ applyPublishingConfig(
             asNode().appendNode("dependencies").apply {
                 rootProject.subprojects.forEach {
                     if (it.path.startsWith(":runtime:")) {
-                        val versionName = it.name.drop(1)
+                        val versionParts = it.name.removePrefix("v").split('_').map(String::toInt)
+                        val usesUnobfuscatedJar =
+                            versionParts[0] > 26 ||
+                                (versionParts[0] == 26 && versionParts[1] >= 1)
                         appendNode("dependency").apply {
                             appendNode("groupId", "dev.s7a")
                             appendNode("artifactId", "ktAdvancements-runtime-${it.name}")
                             appendNode("version", rootProject.version.toString())
-                            if (isPaperOnlyRuntime(versionName).not()) {
-                                appendNode("classifier", "mojang-mapped")
+                            if (!usesUnobfuscatedJar) {
+                                appendNode("classifier", "mojang-mapped") // Use mojang mapped
                             }
                             appendNode("scope", "compile")
                         }
