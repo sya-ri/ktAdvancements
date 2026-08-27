@@ -70,6 +70,10 @@ implementation("dev.s7a:ktAdvancements-runtime:1.0.0-SNAPSHOT")
 implementation("dev.s7a:ktAdvancements-runtime-mojang:1.0.0-SNAPSHOT")
 ```
 
+For Paper 1.20.5+, use the Mojang-mapped aggregate and declare the namespace in your final plugin JAR.
+Older Paper remappers cannot process the Java 25 classes included by the Spigot-mapped aggregate;
+see [Mojang-mapped vs Spigot-mapped](#mojang-mapped-vs-spigot-mapped) below.
+
 ### 2. Version-Specific Runtime
 Use this if you only need to support a specific Minecraft version:
 ```kotlin
@@ -419,9 +423,108 @@ The library is divided into several modules with the following dependencies:
    - `ktAdvancements-store-sqlite`: SQLite-based persistent storage
    - `ktAdvancements-store-mysql`: MySQL-based persistent storage
 
+### Game tests and screenshots
+
+The `game-test` module tests every supported runtime directory, from 1.17.1 through 26.2 (30 versions).
+It builds the current project directly; it does not use previously published `mavenLocal` artifacts.
+Run Gradle with JDK 25. Server/client launchers use Java 17, 21, or 25 as appropriate.
+
+```sh
+# Real-server tests: runtime selection, display definitions, visibility, and packet progress.
+./gradlew :game-test:gameTestAll
+# One version (use underscores in task names).
+./gradlew :game-test:gameTest26_2
+```
+
+Screenshot tests also launch an isolated vanilla client, join the local test server, open the
+Advancements screen, hover the `Progress` advancement, and save Minecraft's own F2 screenshots.
+The four stages are **0/10**, **3/10**, **10/10**, and **9/10** after revoking one step.
+Each stage waits for its screenshot acknowledgement before advancing. Packet tests run first.
+Image checks verify PNG decoding, 1280×720 resolution, the advancement window/background, both nodes,
+and the hovered tooltip. The bar's fill boundary and the exact `Progress` title and progress fraction
+are checked against vanilla's bitmap glyphs, rejecting empty screens, missing tooltips, and wrong stages.
+These focused checks use the default English font at GUI scale 2 with a small color tolerance;
+they are not a pixel-perfect baseline for the world behind the UI. Full screenshots remain available for review.
+
+For automatic capture on Linux x86_64, install `python3`, `xdotool`, `xvfb`, `xauth`, and the usual
+Minecraft OpenGL/audio libraries (on Ubuntu: `libgl1-mesa-dri libglx-mesa0 libopenal1 libxrandr2 libxinerama1 libxcursor1 libxi6`):
+
+```sh
+xvfb-run -a -s '-screen 0 1280x720x24' ./gradlew :game-test:screenshotTest26_2
+xvfb-run -a -s '-screen 0 1280x720x24' ./gradlew :game-test:screenshotTestAll --continue
+```
+
+Windows x86_64 uses manual F2 capture with the same server, stage synchronization, and image checks:
+
+```powershell
+.\gradlew.bat :game-test:screenshotTest26_2
+```
+
+At the first capture prompt, press **L**, hover the stone `Progress` icon, then press **F2**.
+Keep the screen open and the cursor on that icon; press F2 again at each subsequent stage prompt.
+Do not resize the window or change GUI scale. Linux can also opt into this mode with
+`-PgameTestScreenshotDriver=manual`.
+
+Outputs are kept under `game-test/build/`:
+
+- `visual/<version>/exchange/screenshots/{zero,partial,complete,revoked}.png`
+- `visual/<version>/result.properties`, server/client logs, and screenshot-driver logs
+- `servers/run-<version>/result.properties` and `server.log` for packet tests
+
+The GitHub Actions workflow runs the entire version matrix and uploads each version's screenshots
+and diagnostic results. The same compiled test classes are packaged twice, with all supported runtimes
+and multi-release implementation classes retained in both JARs:
+
+- `:game-test:shadowJar` creates `game-test-all.jar`, using the same runtime artifacts as `ktAdvancements-runtime`.
+  Old Paper (through 1.20.4) and Spigot tests use this variant.
+- `:game-test:mojangShadowJar` creates `game-test-mojang-all.jar`, using the same normal runtime JARs as
+  `ktAdvancements-runtime-mojang` and declaring `paperweight-mappings-namespace: mojang`.
+  Paper 1.20.5+ tests use this variant without startup remapping.
+
+CI builds both once and reuses those exact JARs via
+`-PgameTestPluginJar=/absolute/path/game-test-all.jar` and
+`-PgameTestMojangPluginJar=/absolute/path/game-test-mojang-all.jar`.
+The tasks select the appropriate variant automatically. Ordinary `build`/`check` do not launch Minecraft.
+The image validator and Linux capture driver also have GUI-free unit tests:
+
+```sh
+./gradlew -p buildSrc test
+python3 -B -m unittest discover -s game-test/scripts -p 'test_*.py'
+```
+
+Paper distributions are used where available. Exact releases 1.20.3 and 26.1 have no Paper
+distribution, so the tasks build Spigot with BuildTools revisions **3961** and **4608**, respectively.
+To supply an already-built exact-version server, use `-PgameTestSpigot1_20_3Jar=/path/to/spigot-1.20.3.jar`
+or `-PgameTestSpigot26_1Jar=/path/to/spigot-26.1.jar`. The reported runtime and Bukkit version are checked.
+
+These opt-in tasks download Minecraft software and write `eula=true` for their disposable test
+servers. Run them only if you own Minecraft and accept the [Minecraft EULA](https://www.minecraft.net/eula).
+[PortableMC 5.0.4](https://github.com/theorzr/portablemc/releases/tag/v5.0.4) is SHA-256-pinned.
+Clients use dedicated game/cache directories and an offline test name, without reading launcher
+accounts or modifying existing Minecraft settings. Servers bind only to `127.0.0.1`.
+Do not commit or upload downloaded server/client JARs, assets, worlds, or account files; CI only
+shares this project's two compiled test-plugin variants, screenshots, and diagnostic logs.
+
 ### Mojang-mapped vs Spigot-mapped
 
 From 1.20.5 through 1.21.11, Paper ships with a Mojang-mapped runtime instead of re-obfuscating the server to Spigot mappings. Additionally, CraftBukkit classes are no longer relocated into a versioned package. Plugins that use server internals therefore need the artifact matching the server's mappings namespace.
+
+When shading the multi-version library for Paper 1.20.5+, choose `ktAdvancements-runtime-mojang`
+and mark the final plugin JAR as Mojang-mapped. For example, with Shadow:
+
+```kotlin
+tasks.shadowJar {
+    manifest.attributes["paperweight-mappings-namespace"] = "mojang"
+}
+```
+
+This is necessary for older Paper releases when bundling the 26.x runtimes: Paper 1.20.6's ASM 9.7
+remapper rejects Java 25 class files even when that runtime would not be selected. Its remapper also
+rejects Java 24 multi-release classes supplied by the game-test plugin's Byte Buddy dependency.
+The complete Spigot-mapped aggregate therefore cannot simply be remapped on these older Paper versions.
+Use the complete Mojang-mapped aggregate with the manifest above; no runtime or multi-release
+implementation classes need to be removed. This follows Paper's documented
+[Mojang-mapped plugin loading](https://docs.papermc.io/paper/dev/userdev/#default-mappings-assumption).
 
 Most of this process is done automatically by paperweight, but there are some important things to know when using server internals (or "NMS") from now on:
 

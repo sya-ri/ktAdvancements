@@ -6,6 +6,7 @@ shadow = "9.4.1"
 spigot = "26.1.2-R0.1-SNAPSHOT"
 sqlite-jdbc = "3.53.0.0"
 mysql-connector-j = "9.7.0"
+mockito = "5.23.0"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -17,3 +18,4 @@ shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 spigot-api = { group = "org.spigotmc", name = "spigot-api", version.ref = "spigot" }
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
 mysql-connector-j = { module = "com.mysql:mysql-connector-j", version.ref = "mysql-connector-j" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
