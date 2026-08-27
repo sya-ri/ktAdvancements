@@ -134,7 +134,7 @@ val gameTestAll by tasks.registering {
 
 val screenshotTestAll by tasks.registering {
     group = "verification"
-    description = "Captures all four advancement progress stages on every supported Minecraft client."
+    description = "Compares all four advancement progress screenshots against committed baselines on every supported client."
 }
 
 // CI builds both namespace variants once, retaining all 30 runtime implementations.
@@ -201,6 +201,9 @@ val installedPortableMcExecutable = installPortableMc.map {
 }
 val screenshotDriverMode = providers.gradleProperty("gameTestScreenshotDriver")
     .orElse(if (System.getProperty("os.name").lowercase().contains("linux")) "linux" else "manual")
+val updateScreenshotBaselines = providers.gradleProperty("updateGameTestScreenshots")
+    .map { it.toBooleanStrict() }
+    .orElse(false)
 
 val gameTestVersions by tasks.registering {
     group = "verification"
@@ -257,7 +260,7 @@ runtimeProjects.forEach { runtimeProject ->
 
     val screenshotTest =
         tasks.register<MinecraftScreenshotTestTask>("screenshotTest$versionName") {
-            description = "Captures advancement progress screenshots on Minecraft $version."
+            description = "Compares advancement progress screenshots on Minecraft $version with committed baselines."
             dependsOn(gameTest)
             minecraftVersion.set(version)
             expectedRuntime.set(runtimeProject.name)
@@ -267,6 +270,8 @@ runtimeProjects.forEach { runtimeProject ->
             portableMcExecutable.set(installedPortableMcExecutable)
             clientCacheDirectory.set(layout.buildDirectory.dir("client-cache"))
             workDirectory.set(layout.buildDirectory.dir("visual/$version"))
+            baselineDirectory.set(layout.projectDirectory.dir("src/test/screenshots"))
+            updateBaselines.set(updateScreenshotBaselines)
             when (screenshotDriverMode.get()) {
                 "linux" -> screenshotDriver.set(layout.projectDirectory.file("scripts/capture-linux.py"))
                 "manual" -> Unit

@@ -82,7 +82,7 @@ jobs:
           # Keep downloaded Minecraft software on the ephemeral runner only.
           cache-disabled: true
 
-      - name: Test screenshot image validation
+      - name: Test screenshot validation and baseline comparison
         run: |
           ./gradlew -p buildSrc test --console=plain --no-daemon --max-workers=2 \
             -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
@@ -149,7 +149,7 @@ jobs:
     timeout-minutes: 75
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 8
       matrix: ${{ fromJSON(needs.compile.outputs.matrix) }}
     env:
       MINECRAFT_VERSION: ${{ matrix.version }}
@@ -190,7 +190,7 @@ jobs:
             libgl1 libgl1-mesa-dri libglx-mesa0 libopenal1 \
             libxrandr2 libxinerama1 libxcursor1 libxi6
 
-      - name: Run packet tests and capture all four progress stages
+      - name: Run packet tests and compare all four screenshots with committed baselines
         # screenshotTest depends on gameTest. The task downloads pinned PortableMC 5.0.4
         # and each exact vanilla client; Spigot-only releases are built locally by BuildTools.
         run: |
@@ -209,6 +209,8 @@ jobs:
           # Do not upload server/client JARs, BuildTools output, assets, worlds, or account data.
           path: |
             game-test/build/visual/${{ matrix.release }}/exchange/screenshots/*.png
+            game-test/build/visual/${{ matrix.release }}/comparison/*.png
+            game-test/build/visual/${{ matrix.release }}/comparison/report.properties
             game-test/build/visual/${{ matrix.release }}/server.log
             game-test/build/visual/${{ matrix.release }}/result.properties
             game-test/build/visual/${{ matrix.release }}/client.log
@@ -217,4 +219,17 @@ jobs:
             game-test/build/servers/run-${{ matrix.release }}/server.log
             game-test/build/servers/run-${{ matrix.release }}/result.properties
           if-no-files-found: warn
+          retention-days: 14
+
+      - name: Preserve failed client captures and crash reports
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: minecraft-${{ matrix.release }}-failure-diagnostics
+          # Raw F2 captures can explain a rejected image, but are not validated screenshots.
+          path: |
+            game-test/build/visual/${{ matrix.release }}/client/screenshots/*.png
+            game-test/build/visual/${{ matrix.release }}/client/crash-reports/*.txt
+            game-test/build/buildtools/${{ matrix.release }}/buildtools.log
+          if-no-files-found: ignore
           retention-days: 14

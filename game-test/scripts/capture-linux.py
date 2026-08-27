@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Request one vanilla Minecraft F2 screenshot on an isolated Linux X11 display.
+"""Join a local visual test or request a vanilla F2 screenshot on Linux X11.
 
 The caller must launch a fresh client at 1280x720 with guiScale:2 and the default
 L/F2 bindings, then invoke this script once per stage, in order. VisualGameTest
@@ -10,9 +10,14 @@ signal; a server log or a merely visible launcher is not sufficient.
 This script sends input only. The Gradle caller must detect the new Minecraft PNG,
 validate/copy it, and acknowledge the stage. Run the whole client/test process in
 one xvfb-run session, not a separate Xvfb session for each script invocation.
+
+For releases without Quick Play, --join-server waits for vanilla's profiled
+resource-reload completion before using Multiplayer > Direct Connection.
+The caller must launch that client to its title screen with no --server argument.
 """
 
 import argparse
+import ctypes
 import math
 import os
 from pathlib import Path
@@ -30,6 +35,8 @@ HOVER_X = 680
 HOVER_Y = 368
 TITLE_PATTERN = re.compile(r"Minecraft\*?\s+([0-9]+\.[0-9]+(?:\.[0-9]+)?)(?:\s+-\s+.*)?")
 STAGE_PATTERN = re.compile(r"KTADVANCEMENTS_VISUAL_STAGE (zero|partial|complete|revoked)(?:\s|$)")
+RELOAD_FINISHED_PATTERN = re.compile(r"\[Render thread/INFO\]: Resource reload finished after \d+ ms$")
+CONNECTION_PATTERN = re.compile(r"\[Render thread/INFO\]: Connecting to ([^,]+), (\d+)$")
 LOG_TAIL_BYTES = 2 * 1024 * 1024
 
 
@@ -47,15 +54,26 @@ def positive_timeout(value):
     return seconds
 
 
+def loopback_address(value):
+    match = re.fullmatch(r"127\.0\.0\.1:([0-9]{1,5})", value)
+    if match is None or not 1 <= int(match.group(1)) <= 65535:
+        raise argparse.ArgumentTypeError("must be 127.0.0.1:PORT with a port between 1 and 65535")
+    return value
+
+
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--stage", required=True, choices=STAGES)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--stage", choices=STAGES)
+    mode.add_argument("--join-server", type=loopback_address, help="join this loopback server after resource loading")
     parser.add_argument("--client-log", required=True, type=Path, help="fresh client's logs/latest.log")
     parser.add_argument("--version", help="exact release in the Minecraft window title, e.g. 1.17.1 or 26.2")
     parser.add_argument("--timeout", type=positive_timeout, default=45.0, help="total timeout in seconds (default: 45)")
     args = parser.parse_args(argv)
     if args.version and not re.fullmatch(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?", args.version):
         parser.error("--version must be a numeric stable Minecraft release")
+    if args.join_server and not args.version:
+        parser.error("--version is required with --join-server")
     return args
 
 
@@ -133,22 +151,51 @@ def find_window(xdo, version):
     return matches[0] if matches else None
 
 
-def client_stage(log_path):
+def client_log_lines(log_path):
     try:
         with log_path.open("rb") as log:
             log.seek(0, os.SEEK_END)
             log.seek(max(0, log.tell() - LOG_TAIL_BYTES))
             tail = log.read(LOG_TAIL_BYTES).decode("utf-8", errors="replace")
     except FileNotFoundError:
-        return None
+        return []
     except OSError as error:
         raise CaptureError(f"Could not read --client-log: {error}") from error
+    return tail.splitlines()
+
+
+def client_stage(log_path):
     latest = None
-    for line in tail.splitlines():
+    for line in client_log_lines(log_path):
         if "[CHAT]" in line:
             match = STAGE_PATTERN.search(line)
             if match:
                 latest = match.group(1)
+    return latest
+
+
+def client_resources_ready(log_path):
+    started = False
+    ready = False
+    for line in client_log_lines(log_path):
+        if "[Render thread/INFO]: Reloading ResourceManager:" in line:
+            started = True
+            ready = False
+        elif started and RELOAD_FINISHED_PATTERN.search(line):
+            # ProfiledReloadInstance emits this only after all reload listeners
+            # have completed successfully, including models, shaders and atlases.
+            ready = True
+        elif "[Render thread/FATAL]" in line or "[Render thread/ERROR]: Unreported exception thrown!" in line:
+            raise CaptureError("Minecraft reported a fatal client error during resource loading")
+    return ready
+
+
+def client_connection(log_path):
+    latest = None
+    for line in client_log_lines(log_path):
+        match = CONNECTION_PATTERN.search(line)
+        if match:
+            latest = f"{match.group(1)}:{match.group(2)}"
     return latest
 
 
@@ -177,18 +224,22 @@ def geometry(xdo, window_id):
     return values
 
 
-def assert_input_target(xdo, args, window_id, expected_geometry):
+def assert_window_input_target(xdo, args, window_id, expected_geometry):
     if find_window(xdo, args.version) != window_id:
         raise CaptureError("The selected Minecraft window disappeared or changed")
     if geometry(xdo, window_id) != expected_geometry:
         raise CaptureError("Minecraft window geometry changed during capture")
     if integer(xdo.run("getwindowfocus", "-f")) != window_id:
         raise CaptureError("Minecraft lost keyboard focus; refusing to send input")
+
+
+def assert_input_target(xdo, args, window_id, expected_geometry):
+    assert_window_input_target(xdo, args, window_id, expected_geometry)
     if client_stage(args.client_log) != args.stage:
         raise CaptureError("Client chat no longer reports the requested visual-test stage")
 
 
-def capture(args):
+def create_xdotool(args):
     if sys.platform != "linux":
         raise CaptureError("This driver supports Linux/X11 only; use manual F2 capture mode on Windows")
     if not os.environ.get("DISPLAY", "").strip():
@@ -197,7 +248,39 @@ def capture(args):
     if executable is None:
         raise CaptureError("xdotool is not installed (Debian/Ubuntu: apt-get install xdotool xvfb xauth)")
 
-    xdo = Xdotool(executable, args.timeout)
+    return Xdotool(executable, args.timeout)
+
+
+def unmodified_keycode(name):
+    """Resolve a physical key without xdotool's implicit modifier selection."""
+    try:
+        x11 = ctypes.CDLL("libX11.so.6")
+        x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+        x11.XOpenDisplay.restype = ctypes.c_void_p
+        x11.XStringToKeysym.argtypes = [ctypes.c_char_p]
+        x11.XStringToKeysym.restype = ctypes.c_ulong
+        x11.XKeysymToKeycode.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+        x11.XKeysymToKeycode.restype = ctypes.c_ubyte
+        x11.XkbKeycodeToKeysym.argtypes = [ctypes.c_void_p, ctypes.c_ubyte, ctypes.c_int, ctypes.c_int]
+        x11.XkbKeycodeToKeysym.restype = ctypes.c_ulong
+        x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+    except (OSError, AttributeError) as error:
+        raise CaptureError(f"Could not load X11 keyboard mapping functions: {error}") from error
+    display = x11.XOpenDisplay(None)
+    if not display:
+        raise CaptureError("Could not open DISPLAY to resolve the screenshot key")
+    try:
+        symbol = x11.XStringToKeysym(name.encode("ascii"))
+        keycode = x11.XKeysymToKeycode(display, symbol)
+        if not symbol or not 8 <= keycode <= 255 or x11.XkbKeycodeToKeysym(display, keycode, 0, 0) != symbol:
+            raise CaptureError(f"{name} has no unmodified physical key in X11 keyboard group 0")
+        return keycode
+    finally:
+        x11.XCloseDisplay(display)
+
+
+def capture(args):
+    xdo = create_xdotool(args)
     window_id = wait_for_client(xdo, args)
     bounds = geometry(xdo, window_id)
     xdo.run("windowraise", window_id)
@@ -231,14 +314,86 @@ def capture(args):
         target_x, target_y, bounds["SCREEN"], window_id
     ):
         raise CaptureError("Hover target was not reached or is covered; the advancement screen may not be open")
-    xdo.run("key", "--clearmodifiers", "--delay", 100, "F2")
+    # xdotool can resolve the F2 keysym to Alt+F2. Older GLFW drops the F2
+    # press when it shares Alt's timestamp (its duplicate-ibus-event filter).
+    # A decimal keycode tells xdotool to use no implicit modifiers. Resolve
+    # the current X11 map instead of assuming the usual physical keycode 68.
+    screenshot_keycode = unmodified_keycode("F2")
+    assert_input_target(xdo, args, window_id, bounds)
+    xdo.run("key", "--clearmodifiers", "--delay", 100, str(screenshot_keycode))
     print(f"Sent F2 for stage '{args.stage}'; Gradle must verify the new PNG before acknowledging", flush=True)
+
+
+def assert_join_target(xdo, args, window_id, bounds):
+    assert_window_input_target(xdo, args, window_id, bounds)
+    if not client_resources_ready(args.client_log):
+        raise CaptureError("Client resources are not ready; refusing to send connection input")
+    if client_connection(args.client_log) is not None or client_stage(args.client_log) is not None:
+        raise CaptureError("Minecraft has already connected or started connecting; refusing to navigate its menus")
+
+
+def click_client(xdo, args, window_id, bounds, x, y):
+    assert_join_target(xdo, args, window_id, bounds)
+    target_x, target_y = bounds["X"] + x, bounds["Y"] + y
+    xdo.run("mousemove", "--screen", bounds["SCREEN"], target_x, target_y)
+    xdo.sleep(0.1)
+    pointer = shell_fields(xdo.run("getmouselocation", "--shell"), ("X", "Y", "SCREEN", "WINDOW"))
+    if (pointer["X"], pointer["Y"], pointer["SCREEN"], pointer["WINDOW"]) != (
+        target_x, target_y, bounds["SCREEN"], window_id
+    ):
+        raise CaptureError("Connection button is covered or its pointer target was not reached")
+    assert_join_target(xdo, args, window_id, bounds)
+    xdo.run("click", "--clearmodifiers", 1)
+
+
+def join_server(args):
+    xdo = create_xdotool(args)
+    print(f"Waiting for Minecraft {args.version} resource reload before joining {args.join_server}", flush=True)
+    while True:
+        xdo.remaining()
+        if client_connection(args.client_log) is not None or client_stage(args.client_log) is not None:
+            raise CaptureError("Minecraft has already connected or started connecting")
+        window_id = find_window(xdo, args.version)
+        if window_id is not None and client_resources_ready(args.client_log):
+            break
+        xdo.sleep(0.25)
+    bounds = geometry(xdo, window_id)
+    xdo.run("windowraise", window_id)
+    xdo.run("windowfocus", "--sync", window_id)
+    # LoadingOverlay and TitleScreen fade after the completed resource future.
+    # This is animation settling, not a substitute for the completion barrier.
+    xdo.sleep(4.0)
+    # Verified vanilla layout at 1280x720 / guiScale:2:
+    # TitleScreen multiplayer y=height/4+48+24; Direct Connection y=height-52.
+    click_client(xdo, args, window_id, bounds, 640, 344)
+    xdo.sleep(1.0)
+    click_client(xdo, args, window_id, bounds, 640, 636)
+    xdo.sleep(1.0)
+    # DirectJoinServerScreen's address field is at GUI y=116, height=20.
+    click_client(xdo, args, window_id, bounds, 640, 252)
+    assert_join_target(xdo, args, window_id, bounds)
+    xdo.run("key", "--clearmodifiers", "ctrl+a")
+    xdo.run("type", "--clearmodifiers", "--delay", 50, args.join_server)
+    assert_join_target(xdo, args, window_id, bounds)
+    xdo.run("key", "--clearmodifiers", "Return")
+    while True:
+        xdo.remaining()
+        target = client_connection(args.client_log)
+        if target is not None:
+            if target != args.join_server:
+                raise CaptureError(f"Minecraft connected to {target}, expected {args.join_server}")
+            print(f"Minecraft began connecting to {target} after resource reload", flush=True)
+            return
+        xdo.sleep(0.25)
 
 
 def main(argv=None):
     args = parse_args(argv)
     try:
-        capture(args)
+        if args.join_server:
+            join_server(args)
+        else:
+            capture(args)
     except CaptureError as error:
         print(f"capture-linux: {error}", file=sys.stderr, flush=True)
         return 1

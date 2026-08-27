@@ -443,8 +443,13 @@ Each stage waits for its screenshot acknowledgement before advancing. Packet tes
 Image checks verify PNG decoding, 1280×720 resolution, the advancement window/background, both nodes,
 and the hovered tooltip. The bar's fill boundary and the exact `Progress` title and progress fraction
 are checked against vanilla's bitmap glyphs, rejecting empty screens, missing tooltips, and wrong stages.
-These focused checks use the default English font at GUI scale 2 with a small color tolerance;
-they are not a pixel-perfect baseline for the world behind the UI. Full screenshots remain available for review.
+The real full-frame screenshots are committed under
+[`game-test/src/test/screenshots/<version>/`](game-test/src/test/screenshots).
+Each run compares the advancement window and tooltip against the corresponding baseline PNG,
+including its text, icons, background, and progress bar. A changed pixel beyond an RGB-channel
+tolerance of 8 fails the test. The changing world/chat and transparent outer corners are excluded;
+the comparison regions are fixed from the expected image, never chosen from the new capture.
+The content checks above remain in place, so updating a baseline cannot approve an empty or wrong-stage screen.
 
 For automatic capture on Linux x86_64, install `python3`, `xdotool`, `xvfb`, `xauth`, and the usual
 Minecraft OpenGL/audio libraries (on Ubuntu: `libgl1-mesa-dri libglx-mesa0 libopenal1 libxrandr2 libxinerama1 libxcursor1 libxi6`):
@@ -464,15 +469,34 @@ At the first capture prompt, press **L**, hover the stone `Progress` icon, then 
 Keep the screen open and the cursor on that icon; press F2 again at each subsequent stage prompt.
 Do not resize the window or change GUI scale. Linux can also opt into this mode with
 `-PgameTestScreenshotDriver=manual`.
+For clients without Quick Play (1.17.1 through 1.19.4), the task waits for vanilla's initial
+resource reload before connecting. Linux then uses Direct Connection automatically; in manual mode,
+join the displayed loopback address when prompted. This avoids entering the world before its models load.
+
+Missing or different baseline images fail the test; CI never updates them. To intentionally accept
+a visual change, regenerate the selected version, review and commit its PNG changes, then run again
+without the update flag:
+
+```sh
+xvfb-run -a -s '-screen 0 1280x720x24' ./gradlew :game-test:screenshotTest26_2 -PupdateGameTestScreenshots=true
+git diff --stat -- game-test/src/test/screenshots
+xvfb-run -a -s '-screen 0 1280x720x24' ./gradlew :game-test:screenshotTest26_2
+```
+
+Use `screenshotTestAll` with the same explicit update flag to regenerate every supported version.
+All four real captures must pass the content checks before any baseline is replaced.
 
 Outputs are kept under `game-test/build/`:
 
 - `visual/<version>/exchange/screenshots/{zero,partial,complete,revoked}.png`
+- `visual/<version>/comparison/report.properties` and expected/actual/diff PNGs for image differences
 - `visual/<version>/result.properties`, server/client logs, and screenshot-driver logs
 - `servers/run-<version>/result.properties` and `server.log` for packet tests
 
-The GitHub Actions workflow runs the entire version matrix and uploads each version's screenshots
-and diagnostic results. The same compiled test classes are packaged twice, with all supported runtimes
+The GitHub Actions workflow runs the entire version matrix and uploads each version's actual screenshots,
+baseline-comparison reports, difference images, and diagnostic results. Failed jobs also preserve raw F2 captures, client crash reports, and BuildTools logs
+in a separate `failure-diagnostics` artifact; those raw images have not passed the image checks.
+The same compiled test classes are packaged twice, with all supported runtimes
 and multi-release implementation classes retained in both JARs:
 
 - `:game-test:shadowJar` creates `game-test-all.jar`, using the same runtime artifacts as `ktAdvancements-runtime`.

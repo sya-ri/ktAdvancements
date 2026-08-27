@@ -95,17 +95,32 @@ internal class AdvancementPacketGameTest(
     private fun createMockPlayer(): Player {
         val craftPlayerClass =
             Class.forName("${craftServerClass.packageName}.entity.CraftPlayer") as Class<Any>
-        val serverPlayerClass =
+        val getHandle =
             craftPlayerClass.methods
-                .filter { it.name == "getHandle" && it.parameterCount == 0 }
-                .map(Method::getReturnType)
-                .first { it.name.startsWith("net.minecraft.server.level.") }
-                .let { it as Class<Any> }
-        val connectionField =
-            allFields(serverPlayerClass).single {
-                !Modifier.isStatic(it.modifiers) &&
-                    (it.type.simpleName.contains("Connection") || it.type.simpleName.contains("PacketListener"))
+                .singleOrNull {
+                    it.name == "getHandle" && it.parameterCount == 0 &&
+                        !Modifier.isStatic(it.modifiers) && !it.isBridge && !it.isSynthetic &&
+                        it.returnType.name in setOf(
+                            "net.minecraft.server.level.ServerPlayer",
+                            "net.minecraft.server.level.EntityPlayer",
+                        )
+                } ?: error("Expected one non-bridge server-player getHandle in ${craftPlayerClass.name}")
+        val serverPlayerClass = getHandle.returnType as Class<Any>
+        // Paper also exposes transport/transfer-cookie connections on some versions.
+        // Only the play listener sends the advancement packets under test.
+        val connectionFields =
+            instanceFields(serverPlayerClass).filter {
+                it.type.name in setOf(
+                    "net.minecraft.server.network.ServerGamePacketListenerImpl",
+                    "net.minecraft.server.network.PlayerConnection",
+                )
             }
+        val connectionField =
+            connectionFields.singleOrNull()
+                ?: error(
+                    "Expected one play connection in ${serverPlayerClass.name}, found " +
+                        connectionFields.map { "${it.name}: ${it.type.name}" },
+                )
         val connectionClass = connectionField.type as Class<Any>
         val connection =
             Mockito.mock(

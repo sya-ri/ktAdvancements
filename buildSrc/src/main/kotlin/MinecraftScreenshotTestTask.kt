@@ -1,9 +1,11 @@
+import groovy.json.JsonSlurper
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.LocalState
@@ -15,6 +17,8 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.jvm.toolchain.JavaLauncher
 import org.gradle.work.DisableCachingByDefault
 import java.io.IOException
+import java.io.StringReader
+import java.io.StringWriter
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
@@ -28,6 +32,13 @@ import java.util.Locale
 import java.util.Properties
 import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
+import javax.xml.XMLConstants
+import javax.xml.parsers.DocumentBuilderFactory
+import javax.xml.transform.TransformerFactory
+import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.stream.StreamResult
+import org.w3c.dom.Element
+import org.xml.sax.InputSource
 
 /** Runs a real client and server and collects an acknowledged screenshot of every visual test stage. */
 @DisableCachingByDefault(because = "Starts an interactive Minecraft client and records live screenshots")
@@ -61,6 +72,15 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
     @get:LocalState
     abstract val workDirectory: DirectoryProperty
 
+    /** Git-managed baseline root; each exact Minecraft version has its own four PNGs. */
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val baselineDirectory: DirectoryProperty
+
+    /** An explicit local opt-in: ordinary tests and CI never rewrite their expected images. */
+    @get:Input
+    abstract val updateBaselines: Property<Boolean>
+
     /** Optional Linux-only driver; without it the task prompts the user to press F2. */
     @get:Optional
     @get:InputFile
@@ -85,6 +105,7 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
         renderDelaySeconds.convention(3L)
         joinTimeoutSeconds.convention(180L)
         stageTimeoutSeconds.convention(120L)
+        updateBaselines.convention(false)
     }
 
     @TaskAction
@@ -104,6 +125,9 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
                 )
             waitForExit(run, installer)
             checkExitCode(installer)
+            val clientMetadata = readClientMetadata(configuration)
+            val quickPlay = supportsQuickPlay(clientMetadata)
+            if (!quickPlay) prepareProfiledClientLogging(configuration, clientMetadata)
 
             val port = availableLoopbackPort()
             writeServerConfiguration(configuration, port)
@@ -119,11 +143,46 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
                 startProcess(
                     run,
                     "Minecraft client",
-                    portableMcCommand(configuration) +
-                        listOf("--join-server", LOOPBACK_ADDRESS, "--join-server-port", port.toString()),
+                    portableMcCommand(configuration, profiledResources = !quickPlay) +
+                        if (quickPlay) {
+                            listOf("--join-server", LOOPBACK_ADDRESS, "--join-server-port", port.toString())
+                        } else {
+                            emptyList()
+                        },
                     configuration.clientLog,
                     appendLog = true,
                 )
+            if (!quickPlay) {
+                waitForClientResources(run)
+                if (configuration.driverPath != null) {
+                    val connector =
+                        startProcess(
+                            run,
+                            "Client connection driver",
+                            listOf(
+                                "python3",
+                                configuration.driverPath.toString(),
+                                "--join-server",
+                                "$LOOPBACK_ADDRESS:$port",
+                                "--client-log",
+                                configuration.minecraftClientLog.toString(),
+                                "--version",
+                                configuration.version,
+                            ),
+                            configuration.driverLog,
+                            appendLog = true,
+                        )
+                    waitForExit(run, connector, monitorGameProcesses = true)
+                    checkExitCode(connector)
+                } else {
+                    logger.lifecycle(
+                        "Minecraft {} resources are ready. Use Multiplayer > Direct Connection to join {}:{}.",
+                        configuration.version,
+                        LOOPBACK_ADDRESS,
+                        port,
+                    )
+                }
+            }
 
             STAGES.forEachIndexed { index, stage ->
                 val stageDeadline = waitForStage(run, stage, firstStage = index == 0)
@@ -176,11 +235,24 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
             val result = readProperties(configuration.resultFile)
             validateResult(configuration, result)
             result.setProperty("captureMode", configuration.captureMode)
+            val baselineResult = AdvancementScreenshotBaselines.verify(
+                actualDirectory = configuration.exchangeScreenshots,
+                baselineDirectory = configuration.baselinePath,
+                comparisonDirectory = configuration.comparisonDirectory,
+                update = configuration.updateBaselines,
+            )
+            result.setProperty("baselineStatus", baselineResult.status)
             writePropertiesAtomically(configuration.resultFile, result)
+            check(baselineResult.errors.isEmpty()) {
+                "Screenshot baseline comparison failed:\n" + baselineResult.errors.joinToString("\n") +
+                    "\nSee ${configuration.comparisonDirectory}. " +
+                    "Use -PupdateGameTestScreenshots=true only to intentionally update and review the committed PNGs."
+            }
             logger.lifecycle(
-                "Minecraft {} screenshot test passed ({}): {}",
+                "Minecraft {} screenshot test passed ({}, baselines={}): {}",
                 configuration.version,
                 configuration.captureMode,
+                baselineResult.status,
                 configuration.exchangeScreenshots,
             )
         } catch (throwable: Throwable) {
@@ -201,7 +273,9 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
     private fun configuration(): Configuration {
         val version = minecraftVersion.get().trim()
         val runtime = expectedRuntime.get().trim()
-        require(version.isNotEmpty()) { "minecraftVersion must not be blank" }
+        require(version.matches(Regex("\\d+\\.\\d+(?:\\.\\d+)?"))) {
+            "minecraftVersion must be an exact numeric stable release"
+        }
         require(runtime.matches(Regex("v\\d+(?:_\\d+)+"))) {
             "expectedRuntime must be a runtime package segment such as v1_20_3"
         }
@@ -235,6 +309,8 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
                 portableMcPath = portableMcExecutable.get().asFile.toPath().toAbsolutePath().normalize(),
                 cachePath = clientCacheDirectory.get().asFile.toPath().toAbsolutePath().normalize(),
                 workPath = workPath,
+                baselinePath = baselineDirectory.get().asFile.toPath().toAbsolutePath().normalize().resolve(version),
+                updateBaselines = updateBaselines.get(),
                 driverPath = driverPath,
                 timeoutSeconds = timeout,
                 renderDelaySeconds = renderDelay,
@@ -255,6 +331,7 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
         Files.createDirectories(configuration.cachePath)
         Files.createDirectories(configuration.clientScreenshots)
         Files.createDirectories(configuration.exchangeScreenshots)
+        Files.createDirectories(configuration.comparisonDirectory)
         val pluginsDirectory = configuration.workPath.resolve("plugins")
         Files.createDirectories(pluginsDirectory)
         val installedPlugin = pluginsDirectory.resolve("ktAdvancements-game-test.jar")
@@ -268,11 +345,16 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
             configuration.stageFile,
             configuration.serverLog,
             configuration.clientLog,
+            configuration.minecraftClientLog,
             configuration.driverLog,
+            configuration.comparisonDirectory.resolve("report.properties"),
         ).forEach(Files::deleteIfExists)
         STAGES.forEach { stage ->
             Files.deleteIfExists(configuration.exchangeDirectory.resolve("ack-${stage.name}"))
             Files.deleteIfExists(configuration.exchangeScreenshots.resolve(stage.screenshot))
+            listOf("expected", "actual", "diff").forEach { kind ->
+                Files.deleteIfExists(configuration.comparisonDirectory.resolve("${stage.name}-$kind.png"))
+            }
         }
         Files.writeString(configuration.clientDirectory.resolve("options.txt"), CLIENT_OPTIONS, StandardCharsets.UTF_8)
         Files.writeString(configuration.workPath.resolve("eula.txt"), "eula=true\n", StandardCharsets.UTF_8)
@@ -307,7 +389,10 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
         Files.writeString(configuration.workPath.resolve("server.properties"), properties, StandardCharsets.UTF_8)
     }
 
-    private fun portableMcCommand(configuration: Configuration) =
+    private fun portableMcCommand(
+        configuration: Configuration,
+        profiledResources: Boolean = false,
+    ) =
         listOf(
             configuration.portableMcPath.toString(),
             "--output",
@@ -320,12 +405,108 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
             configuration.clientDirectory.toString(),
             "--jvm",
             configuration.javaPath.toString(),
-            "--jvm-arg=-Xms256M,-Xmx2G",
+            "--jvm-arg=-Xms256M,-Xmx2G" +
+                if (profiledResources) {
+                    ",-Dlog4j.configurationFile=${configuration.profiledLoggingConfig.toUri().toASCIIString()}"
+                } else {
+                    ""
+                },
             "--resolution",
             "${SCREENSHOT_WIDTH}x$SCREENSHOT_HEIGHT",
             "--username",
             "KtGameTest",
         )
+
+    private fun readClientMetadata(configuration: Configuration): Map<*, *> {
+        val path = configuration.cachePath.resolve("versions/${configuration.version}/${configuration.version}.json")
+        val metadata = JsonSlurper().parseText(Files.readString(path, StandardCharsets.UTF_8)) as? Map<*, *>
+            ?: error("Minecraft client metadata was not an object: $path")
+        check(metadata["id"] == configuration.version) { "Client metadata ID did not match ${configuration.version}" }
+        return metadata
+    }
+
+    private fun supportsQuickPlay(metadata: Map<*, *>): Boolean {
+        val arguments = (metadata["arguments"] as? Map<*, *>)?.get("game") as? List<*>
+            ?: error("Minecraft metadata did not contain game arguments")
+        val values = arguments.flatMap { argument ->
+            when (val value = if (argument is Map<*, *>) argument["value"] else argument) {
+                is String -> listOf(value)
+                is List<*> -> value.map { it as? String ?: error("Non-string Minecraft game argument") }
+                else -> error("Unsupported Minecraft game-argument metadata")
+            }
+        }
+        // PortableMC falls back to --server when this official feature is absent.
+        // That old path can enter the world before vanilla's initial resource reload.
+        return "--quickPlayMultiplayer" in values
+    }
+
+    private fun prepareProfiledClientLogging(
+        configuration: Configuration,
+        metadata: Map<*, *>,
+    ) {
+        val logging = (metadata["logging"] as? Map<*, *>)?.get("client") as? Map<*, *>
+            ?: error("Minecraft client metadata did not declare logging configuration")
+        val fileId = (logging["file"] as? Map<*, *>)?.get("id") as? String
+            ?: error("Minecraft logging configuration had no file ID")
+        check(fileId.matches(Regex("[A-Za-z0-9._-]+")) && fileId != "." && fileId != "..") {
+            "Unsupported Minecraft logging configuration filename: $fileId"
+        }
+        val original = Files.readString(configuration.cachePath.resolve("assets/log_configs/$fileId"), StandardCharsets.UTF_8)
+        val factory = DocumentBuilderFactory.newInstance().apply {
+            setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
+            setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+            setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "")
+            setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "")
+        }
+        val document = factory.newDocumentBuilder().parse(InputSource(StringReader(original)))
+        val roots = document.getElementsByTagName("Root")
+        check(roots.length == 1) { "Expected one root logger in official Minecraft logging configuration" }
+        val root = roots.item(0) as Element
+        root.setAttribute("level", "debug")
+        val appenders = root.getElementsByTagName("AppenderRef")
+        check(appenders.length > 0) { "Official Minecraft root logger had no appenders" }
+        repeat(appenders.length) { (appenders.item(it) as Element).setAttribute("level", "info") }
+        // Preserve Mojang's layouts, %msg{nolookups}, and NETWORK_PACKETS filter.
+        // Debug enables ProfiledReloadInstance; INFO appender thresholds avoid debug output.
+        val transformer = TransformerFactory.newInstance().apply {
+            setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
+            setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "")
+            setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "")
+        }.newTransformer()
+        val writer = StringWriter()
+        transformer.transform(DOMSource(document), StreamResult(writer))
+        Files.writeString(configuration.profiledLoggingConfig, writer.toString(), StandardCharsets.UTF_8)
+    }
+
+    private fun waitForClientResources(run: TestRun) {
+        val deadline = deadlineAfter(run.configuration.joinTimeoutSeconds)
+        logger.lifecycle("Waiting for Minecraft {} initial resource reload before connecting", run.configuration.version)
+        while (true) {
+            checkDeadline(run, deadline, "waiting for vanilla client resource reload")
+            checkGameProcesses(run)
+            val path = run.configuration.minecraftClientLog
+            if (Files.isRegularFile(path)) {
+                val completed = Files.newBufferedReader(path, StandardCharsets.UTF_8).useLines { lines ->
+                    var started = false
+                    var ready = false
+                    lines.forEach { line ->
+                        when {
+                            "[Render thread/INFO]: Reloading ResourceManager:" in line -> {
+                                started = true
+                                ready = false
+                            }
+                            started && RESOURCE_RELOAD_FINISHED.containsMatchIn(line) -> ready = true
+                            "[Render thread/FATAL]" in line || "[Render thread/ERROR]: Unreported exception thrown!" in line ->
+                                error("Minecraft client failed during initial resource reload; see $path")
+                        }
+                    }
+                    ready
+                }
+                if (completed) return
+            }
+            pause(run)
+        }
+    }
 
     private fun serverCommand(configuration: Configuration) =
         listOf(
@@ -641,7 +822,7 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
     ): String =
         buildString {
             appendLine("Minecraft ${configuration.version} screenshot test failed: ${failure.message}")
-            listOf(configuration.serverLog, configuration.clientLog, configuration.driverLog).forEach { path ->
+            listOf(configuration.serverLog, configuration.clientLog, configuration.minecraftClientLog, configuration.driverLog).forEach { path ->
                 appendLine("Log: $path")
                 val tail = logTail(path)
                 if (tail.isNotEmpty()) appendLine(tail)
@@ -674,6 +855,8 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
         val portableMcPath: Path,
         val cachePath: Path,
         val workPath: Path,
+        val baselinePath: Path,
+        val updateBaselines: Boolean,
         val driverPath: Path?,
         val timeoutSeconds: Long,
         val renderDelaySeconds: Long,
@@ -683,8 +866,10 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
         val clientDirectory: Path = workPath.resolve("client")
         val clientScreenshots: Path = clientDirectory.resolve("screenshots")
         val minecraftClientLog: Path = clientDirectory.resolve("logs/latest.log")
+        val profiledLoggingConfig: Path = clientDirectory.resolve("visual-log4j2.xml")
         val exchangeDirectory: Path = workPath.resolve("exchange")
         val exchangeScreenshots: Path = exchangeDirectory.resolve("screenshots")
+        val comparisonDirectory: Path = workPath.resolve("comparison")
         val stageFile: Path = exchangeDirectory.resolve("stage.properties")
         val resultFile: Path = workPath.resolve("result.properties")
         val serverLog: Path = workPath.resolve("server.log")
@@ -742,6 +927,7 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
         const val LOG_TAIL_LINES = 40
         const val NANOS_PER_SECOND = 1_000_000_000L
         val PNG_SIGNATURE = byteArrayOf(137.toByte(), 80, 78, 71, 13, 10, 26, 10)
+        val RESOURCE_RELOAD_FINISHED = Regex("\\[Render thread/INFO\\]: Resource reload finished after \\d+ ms$")
         val STAGES =
             listOf(
                 Stage("zero", 0),
