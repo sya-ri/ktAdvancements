@@ -1,0 +1,5 @@
+name: KtAdvancementsGameTest
+main: dev.s7a.ktAdvancements.gametest.GameTestPlugin
+author: sya_ri
+version: dev
+api-version: 1.13

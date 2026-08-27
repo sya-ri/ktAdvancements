@@ -1,0 +1,235 @@
+name: Minecraft game tests
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  compile:
+    name: Compile all runtimes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Generate the complete runtime matrix
+        id: matrix
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import re
+
+          # Match settings.gradle.kts: runtime directories are the version source of truth.
+          versions = sorted(
+              (
+                  directory.name[1:]
+                  for directory in Path("runtime").iterdir()
+                  if directory.is_dir() and re.fullmatch(r"v\d+_\d+(?:_\d+)?", directory.name)
+              ),
+              key=lambda version: tuple(map(int, version.split("_"))),
+          )
+          if not versions:
+              raise SystemExit("No supported Minecraft runtimes were found")
+          matrix = {
+              "include": [
+                  {"version": version, "release": version.replace("_", ".")}
+                  for version in versions
+              ]
+          }
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("matrix=" + json.dumps(matrix, separators=(",", ":")) + "\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(f"All {len(versions)} supported runtimes will receive packet and screenshot tests.\n\n")
+              summary.write(", ".join(version.replace("_", ".") for version in versions) + "\n")
+          PY
+
+      - name: Test the Linux screenshot driver
+        run: python3 -B -m unittest discover -s game-test/scripts -p 'test_*.py'
+
+      - name: Install Java 17, 21, and 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6
+        with:
+          distribution: temurin
+          # setup-java makes the last version the default JAVA_HOME.
+          java-version: |
+            17
+            21
+            25
+
+      - name: Set up Gradle and validate the wrapper
+        uses: gradle/actions/setup-gradle@4733eaac7c1b0da527e4206b7671e0061de1ce37 # v6
+        with:
+          # Keep downloaded Minecraft software on the ephemeral runner only.
+          cache-disabled: true
+
+      - name: Test screenshot validation and baseline comparison
+        run: |
+          ./gradlew -p buildSrc test --console=plain --no-daemon --max-workers=2 \
+            -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
+
+      - name: Compile both game-test plugin variants once
+        run: |
+          ./gradlew :game-test:shadowJar :game-test:mojangShadowJar \
+            --console=plain --no-daemon --max-workers=2 \
+            -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
+
+      - name: Check both complete plugin variants and exclude Minecraft software
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          from zipfile import ZipFile
+
+          runtimes = {
+              directory.name for directory in Path("runtime").iterdir()
+              if directory.is_dir() and re.fullmatch(r"v\d+_\d+(?:_\d+)?", directory.name)
+          }
+          implementation = re.compile(
+              r"dev/s7a/ktAdvancements/runtime/(v\d+_\d+(?:_\d+)?)/KtAdvancementRuntimeImpl\.class"
+          )
+          for filename in ("game-test-all.jar", "game-test-mojang-all.jar"):
+              with ZipFile(Path("game-test/build/libs") / filename) as plugin:
+                  names = plugin.namelist()
+                  if any(
+                      name.endswith(".class") and name.startswith(("net/minecraft/", "org/bukkit/"))
+                      for name in names
+                  ):
+                      raise SystemExit(f"{filename} unexpectedly bundles Minecraft/Bukkit classes")
+                  bundled_runtimes = {
+                      match.group(1) for name in names if (match := implementation.fullmatch(name))
+                  }
+                  if bundled_runtimes != runtimes:
+                      raise SystemExit(f"{filename} does not contain every supported runtime")
+                  manifest = plugin.read("META-INF/MANIFEST.MF").decode("utf-8").replace("\r\n", "\n")
+                  attributes = dict(
+                      line.split(": ", 1) for line in manifest.replace("\n ", "").splitlines() if ": " in line
+                  )
+                  namespace = attributes.get("paperweight-mappings-namespace")
+                  if filename == "game-test-mojang-all.jar" and namespace != "mojang":
+                      raise SystemExit("The Mojang plugin must declare its mappings namespace")
+                  if filename == "game-test-all.jar" and namespace not in (None, "spigot"):
+                      raise SystemExit("The legacy plugin must not declare Mojang mappings")
+          PY
+
+      - name: Share only the project's two game-test plugin variants
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: game-test-plugins
+          path: |
+            game-test/build/libs/game-test-all.jar
+            game-test/build/libs/game-test-mojang-all.jar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+  game-test:
+    name: Minecraft ${{ matrix.release }}
+    needs: compile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.compile.outputs.matrix) }}
+    env:
+      MINECRAFT_VERSION: ${{ matrix.version }}
+      GAME_TEST_PLUGIN_JAR: ${{ github.workspace }}/game-test/build/libs/game-test-all.jar
+      GAME_TEST_MOJANG_PLUGIN_JAR: ${{ github.workspace }}/game-test/build/libs/game-test-mojang-all.jar
+      LIBGL_ALWAYS_SOFTWARE: "true"
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install Java 17, 21, and 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6
+        with:
+          distribution: temurin
+          java-version: |
+            17
+            21
+            25
+
+      - name: Set up Gradle and validate the wrapper
+        uses: gradle/actions/setup-gradle@4733eaac7c1b0da527e4206b7671e0061de1ce37 # v6
+        with:
+          cache-disabled: true
+
+      - name: Download both compiled game-test plugin variants
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: game-test-plugins
+          path: game-test/build/libs
+
+      - name: Install the virtual display and vanilla-client dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            python3 xdotool xvfb xauth \
+            libgl1 libgl1-mesa-dri libglx-mesa0 libopenal1 \
+            libxrandr2 libxinerama1 libxcursor1 libxi6
+
+      - name: Run packet tests and compare all four screenshots with committed baselines
+        # screenshotTest depends on gameTest. The task downloads pinned PortableMC 5.0.4
+        # and each exact vanilla client; Spigot-only releases are built locally by BuildTools.
+        run: |
+          xvfb-run -a -s '-screen 0 1280x720x24' \
+            ./gradlew ":game-test:screenshotTest${MINECRAFT_VERSION}" \
+            "-PgameTestPluginJar=${GAME_TEST_PLUGIN_JAR}" \
+            "-PgameTestMojangPluginJar=${GAME_TEST_MOJANG_PLUGIN_JAR}" \
+            --console=plain --no-daemon --max-workers=2 \
+            -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
+
+      - name: Upload screenshots and diagnostic results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: minecraft-${{ matrix.release }}-game-tests
+          # Do not upload server/client JARs, BuildTools output, assets, worlds, or account data.
+          path: |
+            game-test/build/visual/${{ matrix.release }}/exchange/screenshots/*.png
+            game-test/build/visual/${{ matrix.release }}/comparison/*.png
+            game-test/build/visual/${{ matrix.release }}/comparison/report.properties
+            game-test/build/visual/${{ matrix.release }}/server.log
+            game-test/build/visual/${{ matrix.release }}/result.properties
+            game-test/build/visual/${{ matrix.release }}/client.log
+            game-test/build/visual/${{ matrix.release }}/screenshot-driver.log
+            game-test/build/visual/${{ matrix.release }}/client/logs/latest.log
+            game-test/build/servers/run-${{ matrix.release }}/server.log
+            game-test/build/servers/run-${{ matrix.release }}/result.properties
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Preserve failed client captures and crash reports
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: minecraft-${{ matrix.release }}-failure-diagnostics
+          # Raw F2 captures can explain a rejected image, but are not validated screenshots.
+          path: |
+            game-test/build/visual/${{ matrix.release }}/client/screenshots/*.png
+            game-test/build/visual/${{ matrix.release }}/client/crash-reports/*.txt
+            game-test/build/buildtools/${{ matrix.release }}/buildtools.log
+          if-no-files-found: ignore
+          retention-days: 14
