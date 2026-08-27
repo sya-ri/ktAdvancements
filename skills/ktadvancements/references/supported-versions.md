@@ -8,11 +8,11 @@ Use it when an agent needs a concise compatibility matrix without scanning `READ
 
 - Multi-version runtime exists via `ktAdvancements-runtime`
 - Mojang-mapped aggregate runtime exists via `ktAdvancements-runtime-mojang`
-- Not every runtime line necessarily supports both Spigot and Paper
+- Runtime modules through 1.21.11 publish mapped variants; modules from 26.1 onward publish one normal unobfuscated artifact
 
 ## Current runtime modules
 
-Spigot/Paper-compatible lines currently present:
+Mapped runtime lines currently present:
 
 - `1.17.1`
 - `1.18`
@@ -41,9 +41,12 @@ Spigot/Paper-compatible lines currently present:
 - `1.21.10`
 - `1.21.11`
 
-Paper-only lines currently present:
+Unobfuscated runtime lines used by both aggregates:
 
+- `26.1`
+- `26.1.1`
 - `26.1.2`
+- `26.2`
 
 ## Source of truth
 

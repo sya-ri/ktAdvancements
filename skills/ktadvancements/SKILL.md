@@ -27,7 +27,7 @@ Use this skill when the task involves:
    - use version-specific runtime modules only when the target server range is narrow
 3. Determine version compatibility from the repository state:
    - inspect `README.md`, `runtime/`, and build files before making claims about supported versions
-   - distinguish between Spigot-compatible and Paper-only runtimes
+   - distinguish mapped runtimes through 1.21.11 from unobfuscated runtimes starting at 26.1
    - if the task targets a new Minecraft line, confirm whether modern Paper mappings change the artifact strategy
    - if the task mainly needs a compatibility matrix, read `references/supported-versions.md`
 4. Prefer the standard pattern:
@@ -48,7 +48,7 @@ Use this skill when the task involves:
 
 - Prefer concrete Kotlin examples over abstract explanation.
 - Keep version advice explicit and grounded in the repository's current runtime set.
-- Do not assume every supported Minecraft version has both Spigot and Paper artifacts.
+- Do not assume every supported Minecraft version uses the same mappings or classifier strategy.
 - When a built-in store does not fit, implement `KtAdvancementStore<T>` instead of wrapping unrelated mutable state ad hoc.
 - When a built-in runtime does not fit, either add a version-specific runtime module or inject a custom `KtAdvancementRuntime`.
 - When custom visibility is required, implement `KtAdvancement.Visibility` rather than adding ad hoc checks around packet sending.

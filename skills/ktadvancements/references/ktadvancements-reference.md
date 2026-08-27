@@ -42,6 +42,8 @@ Use the aggregate runtime unless the user explicitly needs a version-specific ar
 - `ktAdvancements-runtime`: the general aggregate runtime
 - `ktAdvancements-runtime-mojang`: the Mojang-mapped aggregate runtime
 
+Through Minecraft 1.21.11, these aggregates select Spigot-mapped and Mojang-mapped artifacts respectively. Starting at Minecraft 26.1, both aggregates select the same normal unobfuscated artifact.
+
 Before recommending one, inspect the repository's current runtime matrix and README wording. Newer Minecraft lines may not preserve the same Spigot/Paper compatibility model as older ones.
 
 ### Version-specific runtime
@@ -52,6 +54,7 @@ Examples:
 
 ```kotlin
 implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.0-SNAPSHOT")
+// Use this classifier only through Minecraft 1.21.11.
 implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.0-SNAPSHOT:mojang-mapped")
 ```
 
@@ -59,9 +62,10 @@ implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.0-SNAPSHOT:mojang-mapp
 
 - Do not hardcode compatibility assumptions in generated code or advice.
 - Check the runtime modules present in `runtime/` and the compatibility notes in `README.md`.
-- Some runtime lines may be Paper-only because upstream mapping or reobfuscation behavior changed.
+- Through Minecraft 1.21.11, select the mapped artifact appropriate for the target server.
+- Starting at Minecraft 26.1, select the normal unobfuscated artifact without a classifier.
 
-When in doubt, prefer explicit wording such as "this runtime line is Paper-only in the current repository state" rather than extrapolating from older versions.
+When in doubt, describe the mappings and classifier explicitly rather than extrapolating from older versions.
 
 ### Custom runtime
 
@@ -277,6 +281,6 @@ If automatic selection is not appropriate, pass a custom `KtAdvancementRuntime`.
 ## Common pitfalls
 
 - Missing runtime artifact: API alone is not enough for packet sending.
-- Wrong server target: some runtime lines are Paper-only even if older lines supported both Spigot and Paper.
+- Wrong runtime artifact: mappings differ through 1.21.11, while 26.1 and later use the normal unobfuscated artifact.
 - Stale plugin examples: prefer local project modules when working inside the library repo.
 - Overusing custom state maps: use stores and transactions instead.
