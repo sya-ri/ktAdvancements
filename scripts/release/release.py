@@ -29,9 +29,9 @@ REPOSITORY = "sya-ri/ktAdvancements"
 WORKFLOW = ".github/workflows/game-test.yml"
 CENTRAL = "https://repo.maven.apache.org/maven2/"
 ROOT = Path(__file__).resolve().parents[2]
-VERSION = re.compile(r"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)")
+VERSION = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
 SHA = re.compile(r"[0-9a-f]{40}")
-RUNTIME = re.compile(r"v\d+_\d+(?:_\d+)?")
+RUNTIME = re.compile(r"v[0-9]+_[0-9]+(?:_[0-9]+)?")
 DOCS = ("README.md", "skills/ktadvancements/references/ktadvancements-reference.md")
 MODES = ("publish", "finish-release", "retry-publish")
 

@@ -140,7 +140,7 @@ class MetadataTests(IsolatedTests):
         for version in ("0.0.0", "1.0.0", "12.34.567"):
             with self.subTest(version=version):
                 self.assertEqual(version, release.valid_version(version))
-        for version in ("", "v1.0.0", "1.0", "01.0.0", "1.00.0", "1.0.0-SNAPSHOT", "1.0.0-rc.1", "1.0.0+build", "1.0.0\n", "../1.0.0"):
+        for version in ("", "v1.0.0", "1.0", "01.0.0", "1.00.0", "1.0.0-SNAPSHOT", "1.0.0-rc.1", "1.0.0+build", "1.0.0\n", "../1.0.0", "1\u0660.0.0"):
             with self.subTest(version=version), self.assertRaises(release.ReleaseError):
                 release.valid_version(version)
 
