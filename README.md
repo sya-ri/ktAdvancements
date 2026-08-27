@@ -151,7 +151,7 @@ class YourCustomRuntime : KtAdvancementRuntime {
     override fun sendPacket(
         player: Player,
         reset: Boolean,
-        advancements: Map<KtAdvancement, Int>,
+        advancements: Map<KtAdvancement<*>, Int>,
         removed: Set<NamespacedKey>,
     ) {
         TODO("Implement packet sending logic")
@@ -180,6 +180,7 @@ enum class Advancement(
     frame: KtAdvancement.Display.Frame = KtAdvancement.Display.Frame.Task,
     override val requirement: Int = 1,
     override val visibility: KtAdvancement.Visibility = KtAdvancement.Visibility.Always,
+    override val defaultGranted: Boolean = false,
 ) : KtAdvancement<Advancement> {
     HelloWorld(null, 0F, 3F, Material.GRASS_BLOCK, "Hello world", "Join the server"),
     MineStone(HelloWorld, 0F, 1.5F, Material.STONE, "Mine stone", "Mine 10 stones", requirement = 10),
@@ -235,9 +236,9 @@ You can also create your own visibility class by implementing `KtAdvancement.Vis
 
 ```kotlin
 class CustomVisibility : KtAdvancement.Visibility {
-    override fun isShow(
-        advancement: KtAdvancement,
-        store: KtAdvancementStore,
+    override fun <T : KtAdvancement<T>> isShow(
+        advancement: T,
+        store: KtAdvancementStore<T>,
         player: Player,
     ): Boolean {
         TODO("Your custom visibility logic here")
@@ -263,7 +264,7 @@ ktAdvancements.grantAll(player)
 // Grant specific step of advancement
 ktAdvancements.grant(player, advancement, step = 1)
 
-// Revoke advancement from player (complete all steps)
+// Revoke advancement from player (remove all progress)
 ktAdvancements.revoke(player, advancement)
 
 // Revoke all advancements from player
@@ -376,7 +377,7 @@ ktAdvancements.store.setup()
 You can create your own data store by implementing `KtAdvancementStore`:
 
 ```kotlin
-class CustomStore : KtAdvancementStore {
+class CustomStore<T : KtAdvancement<T>> : KtAdvancementStore<T> {
     override fun getProgress(
         player: Player,
         advancements: List<T>,
