@@ -13,24 +13,26 @@ For a repository-specific compatibility matrix, read `supported-versions.md`.
 
 ## Installation
 
-Use versions that match the current project docs.
+Use the stable Maven Central version shown in the current project docs. Bundle the API and
+exactly one runtime option into the plugin; this library is not a standalone server plugin.
 
 ```kotlin
 repositories {
-    maven(url = "https://central.sonatype.com/repository/maven-snapshots/")
+    mavenCentral()
 }
 
 dependencies {
-    implementation("dev.s7a:ktAdvancements-api:1.0.0-SNAPSHOT")
-    implementation("dev.s7a:ktAdvancements-runtime:1.0.0-SNAPSHOT")
+    implementation("dev.s7a:ktAdvancements-api:1.0.0")
+    // Spigot (all supported versions), or Paper through 1.20.4.
+    implementation("dev.s7a:ktAdvancements-runtime:1.0.0")
 }
 ```
 
 Optional stores:
 
 ```kotlin
-implementation("dev.s7a:ktAdvancements-store-sqlite:1.0.0-SNAPSHOT")
-implementation("dev.s7a:ktAdvancements-store-mysql:1.0.0-SNAPSHOT")
+implementation("dev.s7a:ktAdvancements-store-sqlite:1.0.0")
+implementation("dev.s7a:ktAdvancements-store-mysql:1.0.0")
 ```
 
 ## Runtime selection
@@ -44,6 +46,11 @@ Use the aggregate runtime unless the user explicitly needs a version-specific ar
 
 Through Minecraft 1.21.11, these aggregates select Spigot-mapped and Mojang-mapped artifacts respectively. Starting at Minecraft 26.1, both aggregates select the same normal unobfuscated artifact.
 
+For Paper 1.20.5+, use `ktAdvancements-runtime-mojang` and set
+`paperweight-mappings-namespace` to `mojang` in the final plugin JAR's manifest, as shown
+in the README. Older Paper remappers cannot process the Java 25 classes in the full
+Spigot-mapped aggregate, even when those runtime classes are not selected.
+
 Before recommending one, inspect the repository's current runtime matrix and README wording. Newer Minecraft lines may not preserve the same Spigot/Paper compatibility model as older ones.
 
 ### Version-specific runtime
@@ -53,9 +60,9 @@ Use version-specific artifacts when the plugin only targets one server line or w
 Examples:
 
 ```kotlin
-implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.0-SNAPSHOT")
+implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.0")
 // Use this classifier only through Minecraft 1.21.11.
-implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.0-SNAPSHOT:mojang-mapped")
+implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.0:mojang-mapped")
 ```
 
 ### Version support boundary
