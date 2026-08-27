@@ -1,20 +1,34 @@
-[![](assets/logo.png)](assets/logo.png)
+<div align="center">
+  <img src="assets/logo.svg" alt="ktAdvancements" width="112" height="112">
+  <h1>ktAdvancements</h1>
+</div>
 
-A lightweight, packet-based Minecraft advancements library for Spigot/Paper plugins with customizable runtime and data storage.
+A lightweight, packet-based Minecraft advancements library for Kotlin Spigot/Paper plugins,
+with customizable runtimes and data storage.
+
+Define advancement trees, track each player's progress, and control visibility through a typed Kotlin API.
+Bundle the library into your plugin and choose the runtime and storage that fit your server.
+
+[Installation](#installation) · [Usage](#usage) · [Runtime options](#runtime-options) · [Data storage](#data-storage) · [Documentation](#documentation)
 
 ## Features
 
-- **📦 Packet-based Implementation**: Lightweight and efficient advancement management
-- **🔌 Bundlable**: Can be included directly in your plugin
-- **🔄 Customizable Runtime**: Support for multiple Minecraft versions and custom implementations
-- **💾 Flexible Data Storage**: Support for custom storage solutions
-  - [InMemory](#-ktadvancementstoreinmemory): Default in-memory storage
-  - [SQLite](#%EF%B8%8F-ktadvancementstoresqlite): Persistent storage with SQLite (requires `ktAdvancements-store-sqlite` addon)
-  - [MySQL](#%EF%B8%8F-ktadvancementstoremysql): Persistent storage with MySQL (requires `ktAdvancements-store-mysql` addon)
-  - [Custom Implementation](#-custom-storage): Create your own storage solution
-- **🛡️ Type-safe Advancement Creation**: Safe and intuitive API for creating advancements
-- **📊 Progress Tracking**: Detailed progress management with step-based control
-- **👁️ Visibility Control**: Flexible visibility options with custom implementation support
+- **Typed advancement definitions** — declare parents, icons, titles, frames, and requirements in Kotlin.
+- **Per-player progress** — grant, revoke, or set progress, and batch changes in a single update.
+- **Visibility control** — show advancements based on progress, completion, or custom conditions.
+- **Pluggable runtimes** — choose an aggregate runtime, a version-specific artifact, or your own implementation.
+- **Flexible storage** — use [in-memory storage](#ktadvancementstoreinmemory),
+  [SQLite](#ktadvancementstoresqlite), [MySQL](#ktadvancementstoremysql), or a [custom store](#custom-storage).
+- **Bundled with your plugin** — include the API and your chosen runtime directly in your plugin JAR.
+
+## Advancement showcase
+
+A Minecraft 26.2 screenshot from the checked-in game-test baselines, showing the `Progress`
+advancement at **3/10**.
+
+![Minecraft advancement screen with a custom Progress advancement at 3/10](game-test/src/test/screenshots/26.2/partial.png)
+
+[Browse all screenshot baselines](game-test/src/test/screenshots) or see [how the game tests work](#game-tests-and-screenshots).
 
 ## Installation
 
@@ -103,37 +117,18 @@ The 26.1, 26.1.1, and 26.1.2 runtime modules compile against Paper's 26.1.2 dev 
 
 #### Supported versions
 
-Spigot/Paper:
-- 1.17.1
-- 1.18
-- 1.18.1
-- 1.18.2
-- 1.19
-- 1.19.1
-- 1.19.2
-- 1.19.3
-- 1.19.4
-- 1.20
-- 1.20.1
-- 1.20.2
-- 1.20.3
-- 1.20.4
-- 1.20.6
-- 1.21
-- 1.21.1
-- 1.21.3
-- 1.21.4
-- 1.21.5
-- 1.21.6
-- 1.21.7
-- 1.21.8
-- 1.21.9
-- 1.21.10
-- 1.21.11
-- 26.1
-- 26.1.1
-- 26.1.2
-- 26.2
+The following Spigot/Paper releases have runtime modules. Only the listed versions are supported.
+
+| Minecraft series | Supported releases | Server Java |
+| --- | --- | --- |
+| 1.17 | 1.17.1 | 17 |
+| 1.18 | 1.18, 1.18.1, 1.18.2 | 17 |
+| 1.19 | 1.19, 1.19.1, 1.19.2, 1.19.3, 1.19.4 | 17 |
+| 1.20 | 1.20, 1.20.1, 1.20.2, 1.20.3, 1.20.4 | 17 |
+| 1.20 | 1.20.6 | 21 |
+| 1.21 | 1.21, 1.21.1, 1.21.3, 1.21.4, 1.21.5, 1.21.6, 1.21.7, 1.21.8, 1.21.9, 1.21.10, 1.21.11 | 21 |
+| 26.1 | 26.1, 26.1.1, 26.1.2 | 25 |
+| 26.2 | 26.2 | 25 |
 
 ### 3. Custom Runtime
 If your target version is not supported, you can create your own runtime:
@@ -214,21 +209,25 @@ enum class Advancement(
 }
 ```
 
-#### 📊 About Progress Management
+<a id="-about-progress-management"></a>
+
+#### About Progress Management
 
 - The `requirement` parameter represents the number of steps needed to complete the advancement
 - Internally, criteria are created as base-36 strings for each step
 - Due to packet size limitations, it's recommended to keep the `requirement` value small
 - While vanilla Minecraft allows custom criteria strings, this library uses a simplified numeric step system for better performance
 
-#### 👁️ About Visibility
+<a id="️-about-visibility"></a>
+
+#### About Visibility
 
 The library provides several visibility options:
 
 - `Always`: Always visible
 - `HaveProgress`: Visible when player has any progress
 - `Granted`: Visible only when advancement is granted
-- `ParentGranted`: Visible when parent advancement is granted
+- `ParentGranted`: Visible when the parent advancement is granted, or when there is no parent
 - `Any`: Visible when any of the specified conditions are met
 - `All`: Visible when all specified conditions are met
 
@@ -261,7 +260,7 @@ ktAdvancements.grant(player, advancement)
 // Grant all advancements to player
 ktAdvancements.grantAll(player)
 
-// Grant specific step of advancement
+// Add one step of progress
 ktAdvancements.grant(player, advancement, step = 1)
 
 // Revoke advancement from player (remove all progress)
@@ -270,15 +269,14 @@ ktAdvancements.revoke(player, advancement)
 // Revoke all advancements from player
 ktAdvancements.revokeAll(player)
 
-// Revoke specific step of advancement
+// Remove one step of progress
 ktAdvancements.revoke(player, advancement, step = 1)
 
 // Set progress of advancement
 ktAdvancements.set(player, advancement, progress = 3)
 
-// Use transaction for atomic updates
+// Batch progress changes into one store update and one packet update
 ktAdvancements.transaction(player) {
-    // All operations in this block are atomic
     grant(advancement1)
     revoke(advancement2, step = 5)
     set(advancement3, progress = 2)
@@ -290,13 +288,16 @@ When managing multiple advancements simultaneously, it's recommended to use `tra
 - Packet sending is optimized into a single operation
 - Data store writes are optimized into a single operation
 
-This results in better performance and ensures data integrity.
+This reduces repeated storage and packet work. A transaction batches these updates;
+it does not provide rollback across the data store and packet delivery.
 
 ### Data Storage
 
 The library provides multiple storage options for advancement progress:
 
-#### 💾 KtAdvancementStore.InMemory
+<a id="-ktadvancementstoreinmemory"></a>
+
+#### KtAdvancementStore.InMemory
 
 Default in-memory data store:
 
@@ -307,11 +308,11 @@ val ktAdvancements = KtAdvancements(
 )
 ```
 
-#### 🗄️ KtAdvancementStore.SQLite
+<a id="️-ktadvancementstoresqlite"></a>
 
-Persistent data storage using SQLite:
+#### KtAdvancementStore.SQLite
 
-[![SQLite JDBC](https://img.shields.io/maven-central/v/org.xerial/sqlite-jdbc?label=SQLite%20JDBC)](https://central.sonatype.com/artifact/org.xerial/sqlite-jdbc)
+Persistent data storage using SQLite with [SQLite JDBC](https://central.sonatype.com/artifact/org.xerial/sqlite-jdbc):
 
 ```kotlin
 // Add dependency to your build.gradle.kts
@@ -335,11 +336,11 @@ val ktAdvancements = KtAdvancements(
 ktAdvancements.store.setup()
 ```
 
-#### 🗄️ KtAdvancementStore.MySQL
+<a id="️-ktadvancementstoremysql"></a>
 
-Persistent data storage using MySQL:
+#### KtAdvancementStore.MySQL
 
-[![MySQL Connector/J](https://img.shields.io/maven-central/v/com.mysql/mysql-connector-j?label=MySQL%20Connector%2FJ)](https://central.sonatype.com/artifact/com.mysql/mysql-connector-j)
+Persistent data storage using MySQL with [MySQL Connector/J](https://central.sonatype.com/artifact/com.mysql/mysql-connector-j):
 
 ```kotlin
 // Add dependency to your build.gradle.kts
@@ -372,7 +373,9 @@ val ktAdvancements = KtAdvancements(
 ktAdvancements.store.setup()
 ```
 
-#### 🔧 Custom Storage
+<a id="-custom-storage"></a>
+
+#### Custom Storage
 
 You can create your own data store by implementing `KtAdvancementStore`:
 
@@ -393,6 +396,17 @@ class CustomStore<T : KtAdvancement<T>> : KtAdvancementStore<T> {
     }
 }
 ```
+
+## Documentation
+
+- [Usage](#usage) covers advancement definitions, visibility, and progress updates.
+- [Runtime options](#runtime-options) explains aggregate, version-specific, and custom runtimes.
+- [Data storage](#data-storage) covers in-memory, SQLite, MySQL, and custom stores.
+- [Agent skill](skills/ktadvancements) provides a reusable guide for AI coding agents.
+- [Example plugin](example) demonstrates the library in a Bukkit plugin.
+- [Game tests and screenshots](#game-tests-and-screenshots) describes real-server checks and visual baselines.
+- [Changelog](CHANGELOG.md) records release notes.
+- [Release guide](RELEASING.md) documents the maintainer's publication process.
 
 ## For Developers
 
@@ -576,4 +590,4 @@ For more details, please refer to the [Paper userdev documentation](https://docs
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+ktAdvancements is available under the [MIT License](LICENSE).

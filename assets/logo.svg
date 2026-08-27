@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title description">
+  <title id="title">ktAdvancements</title>
+  <desc id="description">An open teal frame enclosing an amber cube.</desc>
+  <path fill="#408e98" d="m80 36 24 14-48 28v72l72 42v28l-96-56V64Z"/>
+  <path fill="#2b6278" d="m176 36 48 28v100l-96 56v-28l72-42V78l-48-28Z"/>
+  <path fill="#f5ba4c" d="m128 64 36 21-36 21-36-21Z"/>
+  <path fill="#e59435" d="m92 85 36 21v42l-36-21Z"/>
+  <path fill="#d97432" d="m128 106 36-21v42l-36 21Z"/>
+</svg>
