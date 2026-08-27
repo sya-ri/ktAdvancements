@@ -18,24 +18,34 @@ A lightweight, packet-based Minecraft advancements library for Spigot/Paper plug
 
 ## Installation
 
-This library requires API and Runtime components. Add the following to your `build.gradle.kts`:
+Stable releases are available from Maven Central. This library requires both API and runtime
+components, which should be bundled into your plugin. Add the following to your `build.gradle.kts`:
 
 ```kotlin
 repositories {
-    maven(url = "https://central.sonatype.com/repository/maven-snapshots/")
+    mavenCentral()
 }
 
 dependencies {
-    implementation("dev.s7a:ktAdvancements-api:1.0.0-SNAPSHOT")
-    implementation("dev.s7a:ktAdvancements-runtime:1.0.0-SNAPSHOT")
+    implementation("dev.s7a:ktAdvancements-api:1.0.0")
+    // Spigot (all supported versions), or Paper through 1.20.4.
+    implementation("dev.s7a:ktAdvancements-runtime:1.0.0")
     
     // Add any of the following store implementations as needed
-    // implementation("dev.s7a:ktAdvancements-store-XXX:1.0.0-SNAPSHOT")
+    // implementation("dev.s7a:ktAdvancements-store-XXX:1.0.0")
 }
 ```
 
 - For other runtime options, see the [Runtime Options](#runtime-options) section below.
 - For storage options, see the [Data Storage](#data-storage) section below.
+
+For Paper 1.20.5+, replace the runtime dependency with `ktAdvancements-runtime-mojang`
+and [mark your final plugin JAR as Mojang-mapped](#mojang-mapped-vs-spigot-mapped).
+Use exactly one runtime option. Run the server with Java 17 for 1.17.1–1.20.4,
+Java 21 for 1.20.5–1.21.11, or Java 25 for 26.1+.
+
+See the [changelog](CHANGELOG.md) for release notes and [release guide](RELEASING.md)
+for the maintainer's publication process.
 
 ## Agent Skill
 
@@ -63,11 +73,11 @@ This library provides multiple runtime options to suit different needs. For more
 ### 1. Multi-Version Runtime (Recommended)
 Use this if you need to support multiple Minecraft versions:
 ```kotlin
-// Spigot-mapped through 1.21.11; unobfuscated from 26.1 onward
-implementation("dev.s7a:ktAdvancements-runtime:1.0.0-SNAPSHOT")
+// Choose ONE: Spigot-mapped through 1.21.11; unobfuscated from 26.1 onward
+implementation("dev.s7a:ktAdvancements-runtime:1.0.0")
 
-// Mojang-mapped through 1.21.11; the same unobfuscated artifacts from 26.1 onward
-implementation("dev.s7a:ktAdvancements-runtime-mojang:1.0.0-SNAPSHOT")
+// OR Mojang-mapped through 1.21.11; the same unobfuscated artifacts from 26.1 onward
+implementation("dev.s7a:ktAdvancements-runtime-mojang:1.0.0")
 ```
 
 For Paper 1.20.5+, use the Mojang-mapped aggregate and declare the namespace in your final plugin JAR.
@@ -78,15 +88,15 @@ see [Mojang-mapped vs Spigot-mapped](#mojang-mapped-vs-spigot-mapped) below.
 Use this if you only need to support a specific Minecraft version:
 ```kotlin
 // For Spigot/Paper plugins up to 1.21.11
-implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT")
+implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0")
 
 // For Paper plugins
-implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0-SNAPSHOT:mojang-mapped")
+implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.0:mojang-mapped")
 ```
 
 For Minecraft `26.1+`, Spigot and Paper use the same normal unobfuscated runtime artifact:
 ```kotlin
-implementation("dev.s7a:ktAdvancements-runtime-v26_1_2:1.0.0-SNAPSHOT")
+implementation("dev.s7a:ktAdvancements-runtime-v26_1_2:1.0.0")
 ```
 
 The 26.1, 26.1.1, and 26.1.2 runtime modules compile against Paper's 26.1.2 dev bundle because Paper does not publish an exact 26.1 bundle. [Spigot documents the 26.1.2 server as fully compatible with the earlier 26.1 releases](https://www.spigotmc.org/threads/spigot-bungeecord-26-1-26-1-1-26-1-2.718646/).
@@ -131,7 +141,7 @@ If your target version is not supported, you can create your own runtime:
 1. Add `ktAdvancements-api` as a dependency:
 ```kotlin
 dependencies {
-    implementation("dev.s7a:ktAdvancements-api:1.0.0-SNAPSHOT")
+    implementation("dev.s7a:ktAdvancements-api:1.0.0")
 }
 ```
 
@@ -305,7 +315,7 @@ Persistent data storage using SQLite:
 ```kotlin
 // Add dependency to your build.gradle.kts
 dependencies {
-    implementation("dev.s7a:ktAdvancements-store-sqlite:1.0.0-SNAPSHOT")
+    implementation("dev.s7a:ktAdvancements-store-sqlite:1.0.0")
 
     // SQLite JDBC driver is bundled with Spigot by default
     // Install if you need a different version
@@ -333,7 +343,7 @@ Persistent data storage using MySQL:
 ```kotlin
 // Add dependency to your build.gradle.kts
 dependencies {
-    implementation("dev.s7a:ktAdvancements-store-mysql:1.0.0-SNAPSHOT")
+    implementation("dev.s7a:ktAdvancements-store-mysql:1.0.0")
     implementation("com.mysql:mysql-connector-j:{VERSION}")
 }
 ```
