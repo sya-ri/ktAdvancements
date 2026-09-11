@@ -1,0 +1,172 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: [Minecraft game tests]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Stable version to publish or recover (for example, 1.0.0)'
+        type: string
+        required: true
+      mode:
+        description: 'retry-publish confirms you checked Portal: no published or pending deployment exists'
+        type: choice
+        default: publish
+        options: [publish, finish-release, retry-publish]
+        required: true
+
+permissions:
+  contents: read
+
+# Never interrupt an upload and never publish two versions concurrently.
+concurrency:
+  group: release-maven-central
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  preflight:
+    if: >-
+      github.repository == 'sya-ri/ktAdvancements' &&
+      ((github.event_name == 'workflow_run' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'master' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.conclusion == 'success') ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      skip: ${{ steps.release.outputs.skip }}
+      sha: ${{ steps.release.outputs.sha }}
+      version: ${{ steps.release.outputs.version }}
+      mode: ${{ steps.release.outputs.mode }}
+    steps:
+      - name: Check out the trusted workflow controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate the event, exact CI commit, version, and existing release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -B scripts/release/release.py preflight
+
+  publish:
+    needs: preflight
+    if: needs.preflight.outputs.skip == 'false'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    permissions:
+      actions: read
+      contents: write
+    env:
+      RELEASE_SHA: ${{ needs.preflight.outputs.sha }}
+      RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+      RELEASE_MODE: ${{ needs.preflight.outputs.mode }}
+    steps:
+      - name: Check out only the tested release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.preflight.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check required secrets and initialize the isolated signing keyring
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          for name in MAVEN_CENTRAL_USERNAME MAVEN_CENTRAL_PASSWORD SIGNING_KEY SIGNING_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing repository secret: $name. See RELEASING.md; no tag or upload has been created."
+              exit 1
+            fi
+          done
+          export GNUPGHOME="$RUNNER_TEMP/ktadvancements-release-keyring"
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+          install -d -m 700 "$GNUPGHOME"
+          printf '%s' "${SIGNING_KEY//\\n/$'\n'}" | gpg --batch --quiet --import
+
+      - name: Install Java 17, 21, and 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6
+        with:
+          distribution: temurin
+          java-version: |
+            17
+            21
+            25
+
+      - name: Set up Gradle without using unprivileged workflow caches
+        uses: gradle/actions/setup-gradle@4733eaac7c1b0da527e4206b7671e0061de1ce37 # v6
+        with:
+          cache-disabled: true
+
+      - name: Recheck release tooling and metadata
+        run: |
+          python3 -B -m unittest discover -s scripts/release/tests -v
+          python3 -B scripts/release/release.py check
+          ./gradlew -p buildSrc test --console=plain --no-daemon --max-workers=2
+
+      - name: Build and stage all signed publications locally
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          export ORG_GRADLE_PROJECT_signingInMemoryKey="${SIGNING_KEY//\\n/$'\n'}"
+          ./gradlew build publishAllPublicationsToReleaseValidationRepository \
+            "-PreleaseCommit=$RELEASE_SHA" \
+            --console=plain --no-daemon --max-workers=2 \
+            -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
+          python3 -B scripts/release/verify_publications.py \
+            --repository build/release-repository --version "$RELEASE_VERSION" --require-signatures
+          python3 -B scripts/release/release.py verify-signatures "--sha=$RELEASE_SHA"
+
+      - name: Recheck CI and reserve the exact version tag before uploading
+        if: env.RELEASE_MODE != 'finish-release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -B scripts/release/release.py reserve-tag \
+            --version "$RELEASE_VERSION" --sha "$RELEASE_SHA" --mode "$RELEASE_MODE"
+
+      - name: Publish one complete deployment and wait for PUBLISHED
+        if: env.RELEASE_MODE != 'finish-release'
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_mavenCentralDeploymentValidation: PUBLISHED
+        run: |
+          export ORG_GRADLE_PROJECT_signingInMemoryKey="${SIGNING_KEY//\\n/$'\n'}"
+          ./gradlew publishAndReleaseToMavenCentral "-PreleaseCommit=$RELEASE_SHA" \
+            --console=plain --no-daemon --max-workers=2 \
+            -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
+
+      - name: Verify every public artifact and signature before announcing the release
+        run: |
+          python3 -B scripts/release/release.py verify-central "--sha=$RELEASE_SHA" --wait-seconds 1800
+          python3 -B scripts/release/verify_publications.py \
+            --repository build/central-verification --version "$RELEASE_VERSION" --require-signatures
+
+      - name: Create the stable GitHub Release from CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -B scripts/release/release.py create-release \
+            --version "$RELEASE_VERSION" --sha "$RELEASE_SHA"

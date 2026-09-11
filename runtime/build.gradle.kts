@@ -109,6 +109,7 @@ subprojects {
 
 applyPublishingConfig(
     "ktAdvancements-runtime",
+    withJavadoc = false,
     pom = {
         withXml {
             asNode().appendNode("dependencies").apply {

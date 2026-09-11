@@ -5,6 +5,7 @@ plugins {
 
 applyPublishingConfig(
     "ktAdvancements-runtime-mojang",
+    withJavadoc = false,
     pom = {
         withXml {
             asNode().appendNode("dependencies").apply {

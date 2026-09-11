@@ -66,6 +66,12 @@ jobs:
       - name: Test the Linux screenshot driver
         run: python3 -B -m unittest discover -s game-test/scripts -p 'test_*.py'
 
+      - name: Test release tooling
+        id: release
+        run: |
+          python3 -B -m unittest discover -s scripts/release/tests -v
+          python3 -B scripts/release/release.py check
+
       - name: Install Java 17, 21, and 25
         uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6
         with:
@@ -130,6 +136,30 @@ jobs:
                   if filename == "game-test-all.jar" and namespace not in (None, "spigot"):
                       raise SystemExit("The legacy plugin must not declare Mojang mappings")
           PY
+
+      - name: Stage signed release publications
+        # A disposable test key exercises signing on pull requests without repository secrets.
+        # This task writes only to build/release-repository, never to Maven Central.
+        run: |
+          export GNUPGHOME="$RUNNER_TEMP/ktadvancements-test-keyring"
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+          install -d -m 700 "$GNUPGHOME"
+          gpg --batch --pinentry-mode loopback --passphrase '' \
+            --quick-generate-key 'ktAdvancements CI <ci@example.invalid>' rsa2048 sign 1d
+          export ORG_GRADLE_PROJECT_signingInMemoryKey="$(gpg --batch --armor --export-secret-keys 'ci@example.invalid')"
+          export ORG_GRADLE_PROJECT_signingInMemoryKeyPassword=''
+          ./gradlew build publishAllPublicationsToReleaseValidationRepository \
+            "-PreleaseCommit=${GITHUB_SHA}" \
+            --console=plain --no-daemon --max-workers=2 \
+            -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
+
+      - name: Validate signed release publications
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          python3 -B scripts/release/verify_publications.py \
+            --repository build/release-repository --version "$RELEASE_VERSION" --require-signatures
+          python3 -B scripts/release/release.py verify-signatures "--sha=$GITHUB_SHA"
 
       - name: Share only the project's two game-test plugin variants
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

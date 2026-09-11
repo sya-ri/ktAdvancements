@@ -19,6 +19,9 @@ out/
 ### Kotlin ###
 .kotlin
 
+### Python release/test tooling ###
+__pycache__/
+
 ### Eclipse ###
 .apt_generated
 .classpath

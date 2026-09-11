@@ -1,10 +1,11 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    // buildSrc supplies Kotlin so it shares a classloader with the publishing and Dokka plugins.
+    id("org.jetbrains.kotlin.jvm")
 }
 
-version = "1.0.0-SNAPSHOT"
+version = "1.0.0"
 
 allprojects {
     repositories {
