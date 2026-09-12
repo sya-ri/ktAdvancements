@@ -34,9 +34,11 @@ slowest test jobs (1.20.3: 12m 02s; 26.1: 9m 38s).
   runs can also restore the default branch's cache. The action saves at job completion,
   before dependent matrix jobs start.
 - Cache downloaded build dependencies, generated Gradle API JARs, compiled build
-  scripts, and buildSrc task outputs. Because buildSrc inherits the root cache
+  scripts, and buildSrc compilation outputs. Because buildSrc inherits the root cache
   configuration, a CI-only init script disables output caching for every project
-  outside buildSrc. This keeps Minecraft tooling outputs out of the shared cache.
+  outside buildSrc. Tests are also excluded so every fresh runner executes validation
+  while reusing the compiled test classes.
+  This keeps Minecraft tooling outputs and test results out of the shared cache.
 
 The allowlist does not retain Paperweight workspaces, artifact transforms,
 server/client JARs, BuildTools work directories, assets, or worlds.

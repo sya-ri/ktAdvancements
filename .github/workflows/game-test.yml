@@ -89,8 +89,8 @@ jobs:
           # One writer seeds the downstream jobs, including on a cold pull-request run.
           # GitHub scopes PR caches to that PR; the privileged Release workflow never reads them.
           cache-read-only: false
-          # Allow only build dependencies, compiled scripts, and buildSrc task outputs.
-          # The init script restricts build-cache entries to buildSrc task outputs.
+          # Allow only build dependencies, compiled scripts, and buildSrc compilation outputs.
+          # The init script excludes all test results and non-buildSrc task outputs.
           # Paperweight workspaces and transforms remain runner-local.
           gradle-home-cache-includes: |
             caches/modules-2

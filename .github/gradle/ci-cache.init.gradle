@@ -1,9 +1,10 @@
-// buildSrc inherits the root build cache. Only let build-logic tasks populate it:
+// buildSrc inherits the root build cache. Only let build-logic compilation populate it:
 // Minecraft tooling and runtime outputs must remain on the ephemeral runner.
 gradle.beforeProject { project ->
-    if (project.rootProject.name != 'buildSrc') {
-        project.tasks.configureEach {
-            outputs.doNotCacheIf('Only buildSrc task outputs are shared by CI') { true }
+    project.tasks.configureEach { task ->
+        // Execute tests on every fresh runner even when compiled test classes are cached.
+        if (project.rootProject.name != 'buildSrc' || task instanceof org.gradle.api.tasks.testing.Test) {
+            outputs.doNotCacheIf('CI shares buildSrc compilation outputs only') { true }
         }
     }
 }
