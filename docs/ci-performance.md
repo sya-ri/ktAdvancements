@@ -29,16 +29,14 @@ slowest test jobs (1.20.3: 12m 02s; 26.1: 9m 38s).
   a separate Gradle invocation and its duplicate build-logic compilation.
 - Use Gradle project parallelism with the existing two-worker limit. Reuse the
   compile job's daemon for publication staging.
-- Enable setup-gradle caching with one writer (compile) and read-only matrix jobs.
+- Use explicit `actions/cache` paths with one writer (compile) and restore-only matrix jobs.
   Allow PR-local writes so a cold PR run can seed its own downstream jobs. Subsequent
-  runs can also restore the default branch's cache. The action saves at job completion,
-  before dependent matrix jobs start.
+  runs can also restore the default branch's cache. Save before the compile job finishes,
+  so dependent matrix jobs can restore the same key even on the first run.
 - Cache downloaded build dependencies, generated Gradle API JARs, compiled build
-  scripts, and buildSrc compilation outputs. Because buildSrc inherits the root cache
-  configuration, a CI-only init script disables output caching for every project
-  outside buildSrc. Tests are also excluded so every fresh runner executes validation
-  while reusing the compiled test classes.
-  This keeps Minecraft tooling outputs and test results out of the shared cache.
+  scripts, and wrapper distributions. The cache key includes the OS, architecture,
+  Gradle configuration, buildSrc sources, and workflow. Task outputs and test results
+  are excluded so each fresh runner compiles the current source and executes validation.
 
 The allowlist does not retain Paperweight workspaces, artifact transforms,
 server/client JARs, BuildTools work directories, assets, or worlds.
@@ -51,8 +49,7 @@ release-tooling tests, and signed-publication checks remain required.
 
 Run actionlint, the Python release/screenshot-driver tests, and the combined Gradle
 build locally. Then compare a complete PR CI run against the baseline above. Check
-the setup-gradle summaries for downstream cache restores and the Gradle logs for
-buildSrc `FROM-CACHE` tasks. Record both wall time and summed job time; higher matrix
+the restore-action logs for downstream cache hits. Record both wall time and summed job time; higher matrix
 concurrency alone reduces latency, not the amount of work. A subsequent run can
 measure warm compile-cache behavior separately from the first, cold run.
 

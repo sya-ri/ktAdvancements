@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 75
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      gradle-cache-key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
     steps:
       - name: Check out sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -83,33 +84,37 @@ jobs:
             21
             25
 
+      - name: Restore Gradle build dependencies
+        id: gradle-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          key: ${{ runner.os }}-${{ runner.arch }}-gradle-tools-v1-${{ hashFiles('**/*.gradle.kts', 'gradle.properties', 'gradle/**', 'buildSrc/src/**', '.github/workflows/game-test.yml') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-gradle-tools-v1-
+          # Keep Minecraft software, transforms, task outputs, and test results runner-local.
+          path: |
+            ~/.gradle/wrapper/dists
+            ~/.gradle/caches/modules-2/metadata-*
+            ~/.gradle/caches/modules-2/files-2.1/*
+            ~/.gradle/caches/*/generated-gradle-jars
+            ~/.gradle/caches/*/kotlin-dsl
+            ~/.gradle/caches/*/groovy-dsl
+            !~/.gradle/caches/modules-2/files-2.1/io.papermc.paper
+            !~/.gradle/caches/modules-2/files-2.1/com.destroystokyo.paper
+            !~/.gradle/caches/modules-2/files-2.1/org.spigotmc
+            !~/.gradle/caches/modules-2/files-2.1/net.minecraft
+            !~/.gradle/caches/modules-2/files-2.1/com.mojang
+
       - name: Set up Gradle and validate the wrapper
         uses: gradle/actions/setup-gradle@4733eaac7c1b0da527e4206b7671e0061de1ce37 # v6
         with:
-          # One writer seeds the downstream jobs, including on a cold pull-request run.
-          # GitHub scopes PR caches to that PR; the privileged Release workflow never reads them.
-          cache-read-only: false
-          # Allow only build dependencies, compiled scripts, and buildSrc compilation outputs.
-          # The init script excludes all test results and non-buildSrc task outputs.
-          # Paperweight workspaces and transforms remain runner-local.
-          gradle-home-cache-includes: |
-            caches/modules-2
-            caches/*/generated-gradle-jars
-            caches/*/kotlin-dsl
-            caches/*/groovy-dsl
-            caches/build-cache-1
-          gradle-home-cache-excludes: |
-            caches/modules-2/files-2.1/io.papermc.paper
-            caches/modules-2/files-2.1/com.destroystokyo.paper
-            caches/modules-2/files-2.1/org.spigotmc
-            caches/modules-2/files-2.1/net.minecraft
-            caches/modules-2/files-2.1/com.mojang
+          # The enhanced provider also extracts implicit cache entries outside its includes.
+          # Use the explicit actions/cache allowlist above instead.
+          cache-disabled: true
 
       - name: Test build logic and compile both game-test plugin variants once
         run: |
           ./gradlew :buildSrc:test :game-test:shadowJar :game-test:mojangShadowJar \
-            --init-script .github/gradle/ci-cache.init.gradle \
-            --console=plain --daemon --parallel --build-cache --max-workers=2 \
+            --console=plain --daemon --parallel --max-workers=2 \
             -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
 
       - name: Check both complete plugin variants and exclude Minecraft software
@@ -162,9 +167,8 @@ jobs:
           export ORG_GRADLE_PROJECT_signingInMemoryKey="$(gpg --batch --armor --export-secret-keys 'ci@example.invalid')"
           export ORG_GRADLE_PROJECT_signingInMemoryKeyPassword=''
           ./gradlew build publishAllPublicationsToReleaseValidationRepository \
-            --init-script .github/gradle/ci-cache.init.gradle \
             "-PreleaseCommit=${GITHUB_SHA}" \
-            --console=plain --daemon --parallel --build-cache --max-workers=2 \
+            --console=plain --daemon --parallel --max-workers=2 \
             -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
 
       - name: Validate signed release publications
@@ -185,6 +189,25 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
+
+      - name: Save Gradle build dependencies for subsequent jobs and runs
+        # One writer, including on cold PR runs. GitHub isolates PR caches by merge ref.
+        if: steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
+          path: |
+            ~/.gradle/wrapper/dists
+            ~/.gradle/caches/modules-2/metadata-*
+            ~/.gradle/caches/modules-2/files-2.1/*
+            ~/.gradle/caches/*/generated-gradle-jars
+            ~/.gradle/caches/*/kotlin-dsl
+            ~/.gradle/caches/*/groovy-dsl
+            !~/.gradle/caches/modules-2/files-2.1/io.papermc.paper
+            !~/.gradle/caches/modules-2/files-2.1/com.destroystokyo.paper
+            !~/.gradle/caches/modules-2/files-2.1/org.spigotmc
+            !~/.gradle/caches/modules-2/files-2.1/net.minecraft
+            !~/.gradle/caches/modules-2/files-2.1/com.mojang
 
   game-test:
     name: Minecraft ${{ matrix.release }}
@@ -215,23 +238,29 @@ jobs:
             21
             25
 
+      - name: Restore Gradle build dependencies from the compile job
+        # Restore only: avoid 30 redundant uploads and cache eviction.
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          key: ${{ needs.compile.outputs.gradle-cache-key }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-gradle-tools-v1-
+          path: |
+            ~/.gradle/wrapper/dists
+            ~/.gradle/caches/modules-2/metadata-*
+            ~/.gradle/caches/modules-2/files-2.1/*
+            ~/.gradle/caches/*/generated-gradle-jars
+            ~/.gradle/caches/*/kotlin-dsl
+            ~/.gradle/caches/*/groovy-dsl
+            !~/.gradle/caches/modules-2/files-2.1/io.papermc.paper
+            !~/.gradle/caches/modules-2/files-2.1/com.destroystokyo.paper
+            !~/.gradle/caches/modules-2/files-2.1/org.spigotmc
+            !~/.gradle/caches/modules-2/files-2.1/net.minecraft
+            !~/.gradle/caches/modules-2/files-2.1/com.mojang
+
       - name: Set up Gradle and validate the wrapper
         uses: gradle/actions/setup-gradle@4733eaac7c1b0da527e4206b7671e0061de1ce37 # v6
         with:
-          # Reuse the compile job's cache; avoid 30 redundant uploads and cache eviction.
-          cache-read-only: true
-          gradle-home-cache-includes: |
-            caches/modules-2
-            caches/*/generated-gradle-jars
-            caches/*/kotlin-dsl
-            caches/*/groovy-dsl
-            caches/build-cache-1
-          gradle-home-cache-excludes: |
-            caches/modules-2/files-2.1/io.papermc.paper
-            caches/modules-2/files-2.1/com.destroystokyo.paper
-            caches/modules-2/files-2.1/org.spigotmc
-            caches/modules-2/files-2.1/net.minecraft
-            caches/modules-2/files-2.1/com.mojang
+          cache-disabled: true
 
       - name: Download both compiled game-test plugin variants
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -253,10 +282,9 @@ jobs:
         run: |
           xvfb-run -a -s '-screen 0 1280x720x24' \
             ./gradlew ":game-test:screenshotTest${MINECRAFT_VERSION}" \
-            --init-script .github/gradle/ci-cache.init.gradle \
             "-PgameTestPluginJar=${GAME_TEST_PLUGIN_JAR}" \
             "-PgameTestMojangPluginJar=${GAME_TEST_MOJANG_PLUGIN_JAR}" \
-            --console=plain --no-daemon --build-cache --max-workers=2 \
+            --console=plain --no-daemon --max-workers=2 \
             -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
 
       - name: Upload screenshots and diagnostic results
