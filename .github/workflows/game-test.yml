@@ -46,7 +46,8 @@ jobs:
                   for directory in Path("runtime").iterdir()
                   if directory.is_dir() and re.fullmatch(r"v\d+_\d+(?:_\d+)?", directory.name)
               ),
-              key=lambda version: tuple(map(int, version.split("_"))),
+              # BuildTools made these the slowest jobs in recent runs; start them first.
+              key=lambda version: (version not in {"1_20_3", "26_1"}, tuple(map(int, version.split("_")))),
           )
           if not versions:
               raise SystemExit("No supported Minecraft runtimes were found")
@@ -85,18 +86,30 @@ jobs:
       - name: Set up Gradle and validate the wrapper
         uses: gradle/actions/setup-gradle@4733eaac7c1b0da527e4206b7671e0061de1ce37 # v6
         with:
-          # Keep downloaded Minecraft software on the ephemeral runner only.
-          cache-disabled: true
+          # One writer seeds the downstream jobs, including on a cold pull-request run.
+          # GitHub scopes PR caches to that PR; the privileged Release workflow never reads them.
+          cache-read-only: false
+          # Allow only build dependencies, compiled scripts, and buildSrc task outputs.
+          # The init script restricts build-cache entries to buildSrc task outputs.
+          # Paperweight workspaces and transforms remain runner-local.
+          gradle-home-cache-includes: |
+            caches/modules-2
+            caches/*/generated-gradle-jars
+            caches/*/kotlin-dsl
+            caches/*/groovy-dsl
+            caches/build-cache-1
+          gradle-home-cache-excludes: |
+            caches/modules-2/files-2.1/io.papermc.paper
+            caches/modules-2/files-2.1/com.destroystokyo.paper
+            caches/modules-2/files-2.1/org.spigotmc
+            caches/modules-2/files-2.1/net.minecraft
+            caches/modules-2/files-2.1/com.mojang
 
-      - name: Test screenshot validation and baseline comparison
+      - name: Test build logic and compile both game-test plugin variants once
         run: |
-          ./gradlew -p buildSrc test --console=plain --no-daemon --max-workers=2 \
-            -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
-
-      - name: Compile both game-test plugin variants once
-        run: |
-          ./gradlew :game-test:shadowJar :game-test:mojangShadowJar \
-            --console=plain --no-daemon --max-workers=2 \
+          ./gradlew :buildSrc:test :game-test:shadowJar :game-test:mojangShadowJar \
+            --init-script .github/gradle/ci-cache.init.gradle \
+            --console=plain --daemon --parallel --build-cache --max-workers=2 \
             -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
 
       - name: Check both complete plugin variants and exclude Minecraft software
@@ -149,8 +162,9 @@ jobs:
           export ORG_GRADLE_PROJECT_signingInMemoryKey="$(gpg --batch --armor --export-secret-keys 'ci@example.invalid')"
           export ORG_GRADLE_PROJECT_signingInMemoryKeyPassword=''
           ./gradlew build publishAllPublicationsToReleaseValidationRepository \
+            --init-script .github/gradle/ci-cache.init.gradle \
             "-PreleaseCommit=${GITHUB_SHA}" \
-            --console=plain --no-daemon --max-workers=2 \
+            --console=plain --daemon --parallel --build-cache --max-workers=2 \
             -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
 
       - name: Validate signed release publications
@@ -179,7 +193,7 @@ jobs:
     timeout-minutes: 75
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 16
       matrix: ${{ fromJSON(needs.compile.outputs.matrix) }}
     env:
       MINECRAFT_VERSION: ${{ matrix.version }}
@@ -204,7 +218,20 @@ jobs:
       - name: Set up Gradle and validate the wrapper
         uses: gradle/actions/setup-gradle@4733eaac7c1b0da527e4206b7671e0061de1ce37 # v6
         with:
-          cache-disabled: true
+          # Reuse the compile job's cache; avoid 30 redundant uploads and cache eviction.
+          cache-read-only: true
+          gradle-home-cache-includes: |
+            caches/modules-2
+            caches/*/generated-gradle-jars
+            caches/*/kotlin-dsl
+            caches/*/groovy-dsl
+            caches/build-cache-1
+          gradle-home-cache-excludes: |
+            caches/modules-2/files-2.1/io.papermc.paper
+            caches/modules-2/files-2.1/com.destroystokyo.paper
+            caches/modules-2/files-2.1/org.spigotmc
+            caches/modules-2/files-2.1/net.minecraft
+            caches/modules-2/files-2.1/com.mojang
 
       - name: Download both compiled game-test plugin variants
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -226,9 +253,10 @@ jobs:
         run: |
           xvfb-run -a -s '-screen 0 1280x720x24' \
             ./gradlew ":game-test:screenshotTest${MINECRAFT_VERSION}" \
+            --init-script .github/gradle/ci-cache.init.gradle \
             "-PgameTestPluginJar=${GAME_TEST_PLUGIN_JAR}" \
             "-PgameTestMojangPluginJar=${GAME_TEST_MOJANG_PLUGIN_JAR}" \
-            --console=plain --no-daemon --max-workers=2 \
+            --console=plain --no-daemon --build-cache --max-workers=2 \
             -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64,JAVA_HOME_21_X64,JAVA_HOME_25_X64
 
       - name: Upload screenshots and diagnostic results
