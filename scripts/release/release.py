@@ -33,6 +33,7 @@ VERSION = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
 SHA = re.compile(r"[0-9a-f]{40}")
 RUNTIME = re.compile(r"v[0-9]+_[0-9]+(?:_[0-9]+)?")
 DOCS = ("README.md", "skills/ktadvancements/references/ktadvancements-reference.md")
+DEPENDENCY_GUIDES = ("docs/runtimes.md", "docs/usage.md")
 MODES = ("publish", "finish-release", "retry-publish")
 
 
@@ -95,12 +96,15 @@ def read_metadata(root=ROOT, sha=None):
     end = headers[1].start() if len(headers) > 1 else len(changelog)
     notes = changelog[headers[0].end():end].strip()
     require(bool(re.search(r"^- \S", notes, re.MULTILINE)), "Release notes must contain actual changes")
-    for path in DOCS:
+    # Older release commits keep these examples in the README and have no guides.
+    readme = source(root, "README.md", sha)
+    guides = [path for path in DEPENDENCY_GUIDES if re.search(r"\]\(" + re.escape(path) + r"(?:#[^)]*)?\)", readme)]
+    for path in (*DOCS, *guides):
         text = source(root, path, sha)
         coordinates = re.findall(r"dev\.s7a:ktAdvancements-[\w-]+:([^\s\"'`)]+)", text)
         require(bool(coordinates), f"No dependency examples in {path}")
         require(all(value.split(":")[0] == version for value in coordinates), f"Dependency versions in {path} do not match {version}")
-        require("mavenCentral()" in text and "central.sonatype.com/repository/maven-snapshots" not in text,
+        require((path in guides or "mavenCentral()" in text) and "central.sonatype.com/repository/maven-snapshots" not in text,
                 f"Stable dependency examples in {path} must use Maven Central")
     return Metadata(version, notes)
 

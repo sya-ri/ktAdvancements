@@ -34,7 +34,7 @@ Missing secrets stop the workflow **before** a version tag is reserved or anythi
 
 1. Set the stable version in the root `build.gradle.kts` (for example, `1.0.0`). All 35 publications
    inherit it; do not change Paper/Spigot's upstream `SNAPSHOT` dependency versions.
-2. Update every ktAdvancements dependency example in `README.md` and
+2. Update every ktAdvancements dependency example in `README.md`, `docs/runtimes.md`, `docs/usage.md`, and
    `skills/ktadvancements/references/ktadvancements-reference.md`. Stable examples use `mavenCentral()`.
 3. Put `## v<version>` first in `CHANGELOG.md`, with the user-facing changes below it. Older entries
    stay intact. The matching section becomes the GitHub Release notes; no release date is guessed in advance.
@@ -48,7 +48,7 @@ python3 -B -m unittest discover -s scripts/release/tests -v
 ```
 
 Build with JDK 25; Java 17 and 21 toolchains are also used. Ordinary `build` does not launch Minecraft
-or publish anything. See the README for the real-server and screenshot test commands.
+or publish anything. See the [development guide](docs/development.md) for the real-server and screenshot test commands.
 
 For a complete publication rehearsal, use a **disposable test signing key**, as demonstrated in
 the `Stage signed release publications` step of `.github/workflows/game-test.yml`:

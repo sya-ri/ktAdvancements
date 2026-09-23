@@ -192,6 +192,22 @@ class MetadataTests(IsolatedTests):
         self.write("README.md", self.documentation + 'compileOnly("org.spigotmc:spigot-api:26.1.2-R0.1-SNAPSHOT")\n')
         self.assertEqual(VERSION, release.read_metadata(self.root).version)
 
+    def test_linked_guides_use_current_versions_and_no_snapshot_repository(self):
+        for path in release.DEPENDENCY_GUIDES:
+            with self.subTest(path=path):
+                self.write("README.md", self.documentation + f"\n[Guide]({path}#dependencies)\n")
+                guide = 'implementation("dev.s7a:ktAdvancements-api:1.0.0")\n'
+                self.write(path, guide)
+                self.assertEqual(VERSION, release.read_metadata(self.root).version)
+                for invalid in (
+                    guide.replace(":1.0.0", ":0.9.0"),
+                    guide + 'maven("https://central.sonatype.com/repository/maven-snapshots/")\n',
+                    "No dependency examples.\n",
+                ):
+                    self.write(path, invalid)
+                    with self.assertRaises(release.ReleaseError):
+                        release.read_metadata(self.root)
+
     def test_reads_commit_metadata_from_git_not_working_files(self):
         git = self.patch_release("git", return_value="committed content")
         self.assertEqual("committed content", release.source(self.root, "README.md", SHA))
