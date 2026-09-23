@@ -48,7 +48,7 @@ Through Minecraft 1.21.11, these aggregates select Spigot-mapped and Mojang-mapp
 
 For Paper 1.20.5+, use `ktAdvancements-runtime-mojang` and set
 `paperweight-mappings-namespace` to `mojang` in the final plugin JAR's manifest, as shown
-in the README. Older Paper remappers cannot process the Java 25 classes in the full
+in [the runtime guide](../../../docs/runtimes.md#mojang-mapped-vs-spigot-mapped). Older Paper remappers cannot process the Java 25 classes in the full
 Spigot-mapped aggregate, even when those runtime classes are not selected.
 
 Before recommending one, inspect the repository's current runtime matrix and README wording. Newer Minecraft lines may not preserve the same Spigot/Paper compatibility model as older ones.
@@ -68,7 +68,7 @@ implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.0:mojang-mapped")
 ### Version support boundary
 
 - Do not hardcode compatibility assumptions in generated code or advice.
-- Check the runtime modules present in `runtime/` and the compatibility notes in `README.md`.
+- Check the runtime modules present in `runtime/` and the compatibility notes in `docs/runtimes.md`.
 - Through Minecraft 1.21.11, select the mapped artifact appropriate for the target server.
 - Starting at Minecraft 26.1, select the normal unobfuscated artifact without a classifier.
 
