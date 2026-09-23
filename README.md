@@ -23,12 +23,9 @@ Bundle the library into your plugin and choose the runtime and storage that fit 
 
 ## Advancement showcase
 
-A Minecraft 26.2 screenshot from the checked-in game-test baselines, showing the `Progress`
-advancement at **3/10**.
+A custom advancement tree with the `Progress` advancement at **3/10**.
 
 ![Minecraft advancement screen with a custom Progress advancement at 3/10](game-test/src/test/screenshots/26.2/partial.png)
-
-[Browse all screenshot baselines](game-test/src/test/screenshots) or see [how the game tests work](docs/development.md#game-tests-and-screenshots).
 
 ## Installation
 
@@ -99,22 +96,13 @@ The [storage guide](docs/usage.md#data-storage) covers dependencies, initializat
 
 ## Agent Skill
 
-This repository also includes a distributable agent skill at `skills/ktadvancements`.
-It is written for general AI agents, not just Codex, and summarizes how to use ktAdvancements in Kotlin Bukkit, Spigot, and Paper projects.
+The [ktAdvancements skill](skills/ktadvancements/SKILL.md) provides usage guidance for AI agents. Install it with either command:
 
-### Install with `gh skill`
-
-```bash
+```sh
 gh skill install sya-ri/ktAdvancements skills/ktadvancements
-```
-
-### Install with `npx skills`
-
-```bash
+# Alternative:
 npx skills add sya-ri/ktAdvancements --skill ktadvancements
 ```
-
-After installing, restart the agent tool so it reloads available skills.
 
 ## License
 

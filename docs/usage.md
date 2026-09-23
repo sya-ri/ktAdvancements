@@ -53,10 +53,8 @@ enum class Advancement(
 
 ### About Progress Management
 
-- The `requirement` parameter represents the number of steps needed to complete the advancement
-- Internally, criteria are created as base-36 strings for each step
-- Due to packet size limitations, it's recommended to keep the `requirement` value small
-- While vanilla Minecraft allows custom criteria strings, this library uses a simplified numeric step system for better performance
+`requirement` is the number of steps needed to complete an advancement.
+Keep it small because each step adds packet data.
 
 <a id="️-about-visibility"></a>
 
@@ -123,13 +121,8 @@ ktAdvancements.transaction(player) {
 }
 ```
 
-When managing multiple advancements simultaneously, it's recommended to use `transaction` instead of individual method calls. Using `transaction` provides several benefits:
-
-- Packet sending is optimized into a single operation
-- Data store writes are optimized into a single operation
-
-This reduces repeated storage and packet work. A transaction batches these updates;
-it does not provide rollback across the data store and packet delivery.
+Use `transaction` to batch several changes into one store update and one packet update.
+It does not provide rollback across storage and packet delivery.
 
 ## Data Storage
 

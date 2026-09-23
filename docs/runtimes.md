@@ -31,8 +31,6 @@ For Minecraft `26.1+`, Spigot and Paper use the same normal unobfuscated runtime
 implementation("dev.s7a:ktAdvancements-runtime-v26_1_2:1.0.0")
 ```
 
-The 26.1, 26.1.1, and 26.1.2 runtime modules compile against Paper's 26.1.2 dev bundle because Paper does not publish an exact 26.1 bundle. [Spigot documents the 26.1.2 server as fully compatible with the earlier 26.1 releases](https://www.spigotmc.org/threads/spigot-bungeecord-26-1-26-1-1-26-1-2.718646/).
-
 ### Supported versions
 
 The following Spigot/Paper releases have runtime modules. Only the listed versions are supported.
@@ -91,23 +89,9 @@ tasks.shadowJar {
 }
 ```
 
-This is necessary for older Paper releases when bundling the 26.x runtimes: Paper 1.20.6's ASM 9.7
-remapper rejects Java 25 class files even when that runtime would not be selected. Its remapper also
-rejects Java 24 multi-release classes supplied by the game-test plugin's Byte Buddy dependency.
-The complete Spigot-mapped aggregate therefore cannot simply be remapped on these older Paper versions.
-Use the complete Mojang-mapped aggregate with the manifest above; no runtime or multi-release
-implementation classes need to be removed. This follows Paper's documented
-[Mojang-mapped plugin loading](https://docs.papermc.io/paper/dev/userdev/#default-mappings-assumption).
+The aggregate contains runtimes requiring newer Java versions, so older Paper remappers cannot safely remap the complete Spigot-mapped bundle.
+The Mojang-mapped aggregate and manifest above avoid that remapping step.
 
-Most of this process is done automatically by paperweight, but there are some important things to know when using server internals (or "NMS") from now on:
-
-- **Minecraft 1.20.5 through 1.21.11**:
-  - By default, all Spigot/Bukkit plugins will be assumed to be Spigot-mapped if they do not specify their mappings namespace in the manifest
-  - All Paper plugins will be assumed to be Mojang-mapped if they do not specify their mappings namespace in the manifest
-  - Spigot-mapped plugins will need to be deobfuscated on first load, Mojang-mapped plugins will not
-- **Minecraft 26.1 and later**:
-  - Minecraft server distributions are unobfuscated, so there is no separate Spigot-mapped runtime artifact and no re-obfuscation step
-  - `reobfJar` is not used; each version module publishes its unobfuscated normal JAR
-  - `ktAdvancements-runtime` and `ktAdvancements-runtime-mojang` both depend on that same normal JAR for these versions, without the `mojang-mapped` classifier
-
-For more details, please refer to the [Paper userdev documentation](https://docs.papermc.io/paper/dev/userdev/#1205-and-beyond) and the [Paper 26.1 announcement](https://papermc.io/news/26-1/).
+Through 1.21.11, choose the artifact matching the server's mapping namespace.
+From 26.1 onward, both aggregate runtimes use the same unobfuscated version artifacts without a classifier.
+See Paper's [Mojang-mapped plugin guidance](https://docs.papermc.io/paper/dev/userdev/#default-mappings-assumption) for the upstream loading rules.
