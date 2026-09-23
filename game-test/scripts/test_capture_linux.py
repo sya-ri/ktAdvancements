@@ -24,6 +24,7 @@ class FakeXdotool:
         self.commands = []
         self.delays = []
         self.titles = {100: "Minecraft* 26.2 - Multiplayer (3rd-party Server)"}
+        self.sdl_windows = []
         self.focus = 100
         self.width = 1280
         self.pointer_window = 100
@@ -39,6 +40,8 @@ class FakeXdotool:
         self.commands.append(arguments)
         command = arguments[0]
         if command == "search":
+            if "--class" in arguments:
+                return "\n".join(map(str, self.sdl_windows))
             return "\n".join(map(str, self.titles))
         if command == "getwindowname":
             return self.titles[arguments[1]]
@@ -140,6 +143,59 @@ class CaptureLinuxTests(unittest.TestCase):
         self.assertIsNone(DRIVER.find_window(self.xdo, "26.2"))
         self.xdo.titles = {100: "Minecraft Launcher", 101: "Minecraft 1.17.1"}
         self.assertEqual(DRIVER.find_window(self.xdo, None), 101)
+
+    def test_sdl_window_requires_exact_version_and_ignores_utility_window(self):
+        self.xdo.titles = {}
+        self.xdo.sdl_windows = [100, 101, 102]
+        titles = {100: "Minecraft 26.3 - Multiplayer (3rd-party Server)",
+                  101: "Minecraft - RenderPearl OpenGL Hidden Utility Window", 102: "Minecraft Launcher"}
+        with mock.patch.object(DRIVER, "net_window_title", side_effect=titles.__getitem__):
+            self.assertEqual(DRIVER.find_window(self.xdo, "26.3"), 100)
+            self.assertIsNone(DRIVER.find_window(self.xdo, "26.2"))
+
+    def test_sdl_and_glfw_matches_are_not_ambiguous_or_double_counted(self):
+        self.xdo.titles = {100: "Minecraft 26.3"}
+        self.xdo.sdl_windows = [100]
+        with mock.patch.object(DRIVER, "net_window_title", return_value="Minecraft 26.3"):
+            self.assertEqual(DRIVER.find_window(self.xdo, "26.3"), 100)
+            self.xdo.sdl_windows.append(101)
+            with self.assertRaisesRegex(DRIVER.CaptureError, "Multiple matching Minecraft windows"):
+                DRIVER.find_window(self.xdo, "26.3")
+
+    def test_net_window_title_requires_utf8_property_and_releases_resources(self):
+        for encoding, format_bits, length, expected in (
+            (2, 8, 14, "Minecraft 26.3"), (3, 8, 14, ""), (2, 16, 14, ""), (2, 8, 4097, "")
+        ):
+            with self.subTest(encoding=encoding, format_bits=format_bits, length=length):
+                x11 = mock.Mock()
+                x11.XOpenDisplay.return_value = 1234
+                x11.XInternAtom.side_effect = [1, 2]
+                buffer = DRIVER.ctypes.create_string_buffer(b"Minecraft 26.3")
+
+                def get_property(display, window_id, pointer, atom):
+                    title = pointer._obj
+                    title.value = DRIVER.ctypes.addressof(buffer)
+                    title.encoding, title.format, title.nitems = encoding, format_bits, length
+                    return 1
+
+                x11.XGetTextProperty.side_effect = get_property
+                with mock.patch.object(DRIVER.ctypes, "CDLL", return_value=x11):
+                    self.assertEqual(DRIVER.net_window_title(100), expected)
+                x11.XFree.assert_called_once_with(DRIVER.ctypes.addressof(buffer))
+                x11.XCloseDisplay.assert_called_once_with(1234)
+
+    def test_net_window_title_handles_missing_property_or_display(self):
+        x11 = mock.Mock()
+        x11.XOpenDisplay.return_value = 1234
+        x11.XInternAtom.side_effect = [1, 2]
+        x11.XGetTextProperty.return_value = 0
+        with mock.patch.object(DRIVER.ctypes, "CDLL", return_value=x11):
+            self.assertEqual(DRIVER.net_window_title(100), "")
+            x11.XFree.assert_not_called()
+            x11.XCloseDisplay.assert_called_once_with(1234)
+            x11.XOpenDisplay.return_value = None
+            with self.assertRaisesRegex(DRIVER.CaptureError, "Could not open DISPLAY"):
+                DRIVER.net_window_title(100)
 
     def test_only_client_chat_markers_count(self):
         cases = (

@@ -367,6 +367,7 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
         val properties =
             """
             online-mode=false
+            white-list=false
             server-ip=$LOOPBACK_ADDRESS
             server-port=$port
             level-name=screenshot-game-test-world
@@ -537,9 +538,11 @@ abstract class MinecraftScreenshotTestTask : DefaultTask() {
                 .directory(run.configuration.workPath.toFile())
                 .apply {
                     if (run.configuration.driverPath != null) {
-                        // Keep GLFW inside the selected X11/Xvfb display, including on WSLg.
+                        // Keep GLFW/SDL inside the selected X11/Xvfb display, including on WSLg.
                         environment().remove("WAYLAND_DISPLAY")
                         environment()["XDG_SESSION_TYPE"] = "x11"
+                        // SDL's OpenGL context needs EGL on bare Xvfb (Minecraft 26.3+).
+                        environment()["SDL_VIDEO_FORCE_EGL"] = "1"
                     }
                 }
                 .redirectErrorStream(true)

@@ -22,17 +22,17 @@ repositories {
 }
 
 dependencies {
-    implementation("dev.s7a:ktAdvancements-api:1.0.0")
+    implementation("dev.s7a:ktAdvancements-api:1.0.1")
     // Spigot (all supported versions), or Paper through 1.20.4.
-    implementation("dev.s7a:ktAdvancements-runtime:1.0.0")
+    implementation("dev.s7a:ktAdvancements-runtime:1.0.1")
 }
 ```
 
 Optional stores:
 
 ```kotlin
-implementation("dev.s7a:ktAdvancements-store-sqlite:1.0.0")
-implementation("dev.s7a:ktAdvancements-store-mysql:1.0.0")
+implementation("dev.s7a:ktAdvancements-store-sqlite:1.0.1")
+implementation("dev.s7a:ktAdvancements-store-mysql:1.0.1")
 ```
 
 ## Runtime selection
@@ -60,9 +60,9 @@ Use version-specific artifacts when the plugin only targets one server line or w
 Examples:
 
 ```kotlin
-implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.0")
+implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.1")
 // Use this classifier only through Minecraft 1.21.11.
-implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.0:mojang-mapped")
+implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.1:mojang-mapped")
 ```
 
 ### Version support boundary

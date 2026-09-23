@@ -210,11 +210,27 @@ internal class AdvancementPacketGameTest(
                     addedLists.single().read(packet) as? Collection<*>
                         ?: error("Added definitions were not a collection in ${packet.javaClass.name}")
                 holders.map { value ->
-                    val holder = requireNotNull(value) { "Added advancement holder was null" }
+                    val entry = requireNotNull(value) { "Added advancement holder was null" }
+                    // 26.3 stores coordinates beside the holder instead of in DisplayInfo.
+                    val holder =
+                        if (entry.javaClass.simpleName == "PositionedAdvancement" && entry.javaClass.enclosingClass == packet.javaClass) {
+                            val holderField =
+                                instanceFields(entry.javaClass).single { it.type.name == "net.minecraft.advancements.AdvancementHolder" }
+                            requireNotNull(holderField.read(entry)).also { holder ->
+                                val expected = expectedAdded.single { it.id.toString() == holder.identifier() }
+                                validateLocation(entry, expected.display)
+                            }
+                        } else {
+                            entry
+                        }
                     val definitionField =
                         instanceFields(holder.javaClass).singleOrNull { it.type.name == "net.minecraft.advancements.Advancement" }
                             ?: error("Expected one advancement value in ${holder.javaClass.name}")
-                    holder.identifier() to requireNotNull(definitionField.read(holder)) { "Added advancement value was null" }
+                    val definition = requireNotNull(definitionField.read(holder)) { "Added advancement value was null" }
+                    check(entry !== holder || !findDisplay(definition).javaClass.isRecord) {
+                        "Immutable display requires a positioned advancement in ${packet.javaClass.name}"
+                    }
+                    holder.identifier() to definition
                 }
             }
         val addedDefinitions = addedEntries.toMap()
@@ -452,9 +468,11 @@ internal class AdvancementPacketGameTest(
         expected: KtAdvancement.Display,
     ) {
         val fields = instanceFields(display.javaClass)
-        val floats = fields.filter { it.type == Float::class.javaPrimitiveType }.map { it.read(display) as Float }
-        check(floats == listOf(expected.x, expected.y)) {
-            "Expected display location ${expected.x},${expected.y}, got $floats from ${display.javaClass.name}"
+        if (display.javaClass.isRecord) {
+            // Immutable DisplayInfo in 26.3 has no coordinates; validateLocation checks the packet entry.
+            check(fields.none { it.type == Float::class.javaPrimitiveType }) { "Unexpected coordinates in ${display.javaClass.name}" }
+        } else {
+            validateLocation(display, expected)
         }
 
         val booleans = fields.filter { it.type == Boolean::class.javaPrimitiveType }.map { it.read(display) as Boolean }
@@ -497,17 +515,32 @@ internal class AdvancementPacketGameTest(
                 icon
             }
         val craftItemStack = Class.forName("${craftServerClass.packageName}.inventory.CraftItemStack")
-        val asBukkitCopy =
-            craftItemStack.methods.singleOrNull {
+        val bukkitCopies =
+            craftItemStack.methods.filter {
                 it.name == "asBukkitCopy" && Modifier.isStatic(it.modifiers) &&
-                    it.parameterCount == 1 && it.parameterTypes.single().name == "net.minecraft.world.item.ItemStack" &&
+                    it.parameterCount == 1 && it.parameterTypes.single().isInstance(stack) &&
                     it.returnType == ItemStack::class.java
-            } ?: error("Expected CraftItemStack.asBukkitCopy for ${stack.javaClass.name}")
+            }
+        // 26.2 has both overloads; 26.3 keeps only the shared ItemInstance interface.
+        val asBukkitCopy =
+            bukkitCopies.singleOrNull { it.parameterTypes.single().name == "net.minecraft.world.item.ItemStack" }
+                ?: bukkitCopies.singleOrNull { it.parameterTypes.single().name == "net.minecraft.world.item.ItemInstance" }
+                ?: error("Expected CraftItemStack.asBukkitCopy for ${stack.javaClass.name}")
         val bukkitIcon = asBukkitCopy.invoke(null, stack) as? ItemStack ?: error("Display icon could not be copied")
         check(bukkitIcon.type == expected.icon.type && bukkitIcon.amount == expected.icon.amount) {
             "Expected icon ${expected.icon.type} x${expected.icon.amount}, got ${bukkitIcon.type} x${bukkitIcon.amount}"
         }
         validateBackground(display, expected)
+    }
+
+    private fun validateLocation(
+        owner: Any,
+        expected: KtAdvancement.Display,
+    ) {
+        val floats = instanceFields(owner.javaClass).filter { it.type == Float::class.javaPrimitiveType }.map { it.read(owner) as Float }
+        check(floats == listOf(expected.x, expected.y)) {
+            "Expected display location ${expected.x},${expected.y}, got $floats from ${owner.javaClass.name}"
+        }
     }
 
     private fun validateBackground(

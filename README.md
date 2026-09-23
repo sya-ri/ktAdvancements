@@ -25,7 +25,7 @@ Bundle the library into your plugin and choose the runtime and storage that fit 
 
 A custom advancement tree with the `Progress` advancement at **3/10**.
 
-![Minecraft advancement screen with a custom Progress advancement at 3/10](game-test/src/test/screenshots/26.2/partial.png)
+![Minecraft advancement screen with a custom Progress advancement at 3/10](game-test/src/test/screenshots/26.3/partial.png)
 
 ## Installation
 
@@ -38,12 +38,12 @@ repositories {
 }
 
 dependencies {
-    implementation("dev.s7a:ktAdvancements-api:1.0.0")
+    implementation("dev.s7a:ktAdvancements-api:1.0.1")
     // Spigot (all supported versions), or Paper through 1.20.4.
-    implementation("dev.s7a:ktAdvancements-runtime:1.0.0")
+    implementation("dev.s7a:ktAdvancements-runtime:1.0.1")
 
     // Add any of the following store implementations as needed
-    // implementation("dev.s7a:ktAdvancements-store-XXX:1.0.0")
+    // implementation("dev.s7a:ktAdvancements-store-XXX:1.0.1")
 }
 ```
 

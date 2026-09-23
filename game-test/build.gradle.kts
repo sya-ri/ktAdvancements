@@ -137,7 +137,7 @@ val screenshotTestAll by tasks.registering {
     description = "Compares all four advancement progress screenshots against committed baselines on every supported client."
 }
 
-// CI builds both namespace variants once, retaining all 30 runtime implementations.
+// CI builds both namespace variants once, retaining all 31 runtime implementations.
 val testPluginJar =
     providers.gradleProperty("gameTestPluginJar")
         .let { override ->

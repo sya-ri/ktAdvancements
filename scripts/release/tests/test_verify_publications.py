@@ -142,14 +142,15 @@ class PublicationTests(unittest.TestCase):
         self.file(artifact, ".module").write_text(json.dumps(metadata), encoding="utf-8")
         return metadata
 
-    def test_all_35_publications_and_legacy_classifiers_pass(self) -> None:
+    def test_all_36_publications_and_legacy_classifiers_pass(self) -> None:
         result = self.verify()
-        self.assertEqual(result, publications.ValidationSummary(35, 33, 30, 26))
+        self.assertEqual(result, publications.ValidationSummary(36, 34, 31, 26))
 
     def test_real_runtime_directories_match_current_release(self) -> None:
-        self.assertEqual(len(RUNTIMES), 30)
+        self.assertEqual(len(RUNTIMES), 31)
         self.assertTrue(RUNTIMES[LEGACY])
         self.assertFalse(RUNTIMES[MODERN])
+        self.assertFalse(RUNTIMES["ktAdvancements-runtime-v26_3"])
 
     def test_release_version_is_numeric_semver_only(self) -> None:
         for version in ("1.0.0-SNAPSHOT", "1.0.0-rc.1", "1.0.0+build", "v1.0.0", "1.0", "01.0.0", " 1.0.0", "1.0.0\n", "1\u0660.0.0"):
@@ -197,7 +198,7 @@ class PublicationTests(unittest.TestCase):
         with self.edit_pom("ktAdvancements-runtime") as root:
             dependencies = root.find("m:dependencies", NS)
             dependencies.remove(dependencies[0])
-        self.assert_invalid("exactly 30")
+        self.assert_invalid("exactly 31")
 
     def test_duplicate_aggregate_dependency_fails(self) -> None:
         with self.edit_pom("ktAdvancements-runtime") as root:
@@ -318,8 +319,8 @@ class PublicationTests(unittest.TestCase):
         self.assert_invalid("Unexpected publication")
 
     def test_wrong_runtime_source_count_fails(self) -> None:
-        (self.runtime_root / "v26_3").mkdir()
-        self.assert_invalid("exactly 30 runtime")
+        (self.runtime_root / "v26_4").mkdir()
+        self.assert_invalid("exactly 31 runtime")
 
     def test_valid_optional_metadata_and_checksums_pass(self) -> None:
         self.make_module()

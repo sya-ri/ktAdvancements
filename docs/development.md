@@ -21,21 +21,21 @@ These tasks download Minecraft software and accept the EULA for disposable test 
 ```sh
 ./gradlew :game-test:gameTestAll
 # One server version:
-./gradlew :game-test:gameTest26_2
+./gradlew :game-test:gameTest26_3
 ```
 
 Screenshot tests additionally launch a client and compare four advancement-progress stages against [committed baselines](../game-test/src/test/screenshots).
-Linux x86_64 capture requires Python 3, xdotool, Xvfb, xauth, and Minecraft's OpenGL/audio dependencies; the [CI workflow](../.github/workflows/game-test.yml) contains the setup.
+Linux x86_64 capture requires Python 3, xdotool, Xvfb, xauth, and Minecraft's OpenGL/EGL/audio dependencies; the [CI workflow](../.github/workflows/game-test.yml) contains the setup.
 
 ```sh
-xvfb-run -a -s '-screen 0 1280x720x24' ./gradlew :game-test:screenshotTest26_2
+xvfb-run -a -s '-screen 0 1280x720x24' ./gradlew :game-test:screenshotTest26_3
 xvfb-run -a -s '-screen 0 1280x720x24' ./gradlew :game-test:screenshotTestAll --continue
 ```
 
 Windows x86_64 uses manual F2 capture:
 
 ```powershell
-.\gradlew.bat :game-test:screenshotTest26_2
+.\gradlew.bat :game-test:screenshotTest26_3
 ```
 
 At the capture prompt, press **L**, hover the stone `Progress` icon, and press **F2** for each stage.
@@ -48,9 +48,9 @@ Missing or differing baselines fail the test. CI never updates them.
 To accept an intentional visual change, regenerate the selected version, review the PNG diff, and rerun without the update flag:
 
 ```sh
-xvfb-run -a -s '-screen 0 1280x720x24' ./gradlew :game-test:screenshotTest26_2 -PupdateGameTestScreenshots=true
+xvfb-run -a -s '-screen 0 1280x720x24' ./gradlew :game-test:screenshotTest26_3 -PupdateGameTestScreenshots=true
 git diff --stat -- game-test/src/test/screenshots
-xvfb-run -a -s '-screen 0 1280x720x24' ./gradlew :game-test:screenshotTest26_2
+xvfb-run -a -s '-screen 0 1280x720x24' ./gradlew :game-test:screenshotTest26_3
 ```
 
 Use `screenshotTestAll` with the same flag to regenerate all versions.
