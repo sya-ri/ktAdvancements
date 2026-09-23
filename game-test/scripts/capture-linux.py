@@ -140,15 +140,54 @@ def shell_fields(output, required):
 
 def find_window(xdo, version):
     ids = xdo.run("search", "--onlyvisible", "--name", "^Minecraft", allow_no_match=True)
+    # SDL's WM_NAME uses the locale's encoding atom, which xdotool cannot decode.
+    # Its standard UTF-8 _NET_WM_NAME still carries the exact Minecraft version.
+    sdl_ids = xdo.run("search", "--onlyvisible", "--class", r"^com\.mojang\.minecraft$", allow_no_match=True)
+    sdl_windows = {integer(value) for value in sdl_ids.splitlines()}
     matches = []
-    for window_id in sorted({integer(value) for value in ids.splitlines()}):
-        title = xdo.run("getwindowname", window_id)
+    for window_id in sorted({integer(value) for value in ids.splitlines()} | sdl_windows):
+        title = net_window_title(window_id) if window_id in sdl_windows else xdo.run("getwindowname", window_id)
         match = TITLE_PATTERN.fullmatch(title)
         if match and (version is None or match.group(1) == version):
             matches.append(window_id)
     if len(matches) > 1:
         raise CaptureError("Multiple matching Minecraft windows; use an isolated Xvfb display with one client")
     return matches[0] if matches else None
+
+
+def net_window_title(window_id):
+    class TextProperty(ctypes.Structure):
+        _fields_ = [("value", ctypes.c_void_p), ("encoding", ctypes.c_ulong),
+                    ("format", ctypes.c_int), ("nitems", ctypes.c_ulong)]
+
+    try:
+        x11 = ctypes.CDLL("libX11.so.6")
+        x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+        x11.XOpenDisplay.restype = ctypes.c_void_p
+        x11.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+        x11.XInternAtom.restype = ctypes.c_ulong
+        x11.XGetTextProperty.argtypes = [ctypes.c_void_p, ctypes.c_ulong,
+                                       ctypes.POINTER(TextProperty), ctypes.c_ulong]
+        x11.XFree.argtypes = [ctypes.c_void_p]
+        x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+    except (OSError, AttributeError) as error:
+        raise CaptureError(f"Could not load X11 window title functions: {error}") from error
+    display = x11.XOpenDisplay(None)
+    if not display:
+        raise CaptureError("Could not open DISPLAY to read the Minecraft window title")
+    title = TextProperty()
+    try:
+        name = x11.XInternAtom(display, b"_NET_WM_NAME", False)
+        utf8 = x11.XInternAtom(display, b"UTF8_STRING", False)
+        if not x11.XGetTextProperty(display, window_id, ctypes.byref(title), name):
+            return ""
+        if not title.value or title.encoding != utf8 or title.format != 8 or title.nitems > 4096:
+            return ""
+        return ctypes.string_at(title.value, title.nitems).decode("utf-8", errors="replace")
+    finally:
+        if title.value:
+            x11.XFree(title.value)
+        x11.XCloseDisplay(display)
 
 
 def client_log_lines(log_path):

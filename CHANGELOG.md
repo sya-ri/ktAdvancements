@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.1
+
+### Added
+
+- Minecraft 26.3 support, available through both runtime aggregates and the version-specific runtime artifact. Requires Java 25.
+
 ## v1.0.0
 
 ### Added

@@ -58,13 +58,13 @@ def discover_runtimes(runtime_root: Path) -> dict[str, bool]:
         for path in runtime_root.iterdir()
         if path.is_dir() and re.fullmatch(r"v[0-9]+_[0-9]+(?:_[0-9]+)?", path.name)
     )
-    require(len(names) == 30, f"Expected exactly 30 runtime source directories, found {len(names)}")
+    require(len(names) == 31, f"Expected exactly 31 runtime source directories, found {len(names)}")
     result = {}
     for name in names:
         parts = tuple(int(part) for part in name[1:].split("_"))
         minecraft_version = parts + (0,) * (3 - len(parts))
         result[RUNTIME_PREFIX + name] = minecraft_version < (26, 1, 0)
-    require(sum(result.values()) == 26, "Expected 26 legacy and 4 unobfuscated runtimes")
+    require(sum(result.values()) == 26, "Expected 26 legacy and 5 unobfuscated runtimes")
     return result
 
 
@@ -135,7 +135,7 @@ def validate_pom(path: Path, artifact: str, version: str, runtimes: dict[str, bo
         require(len(api_dependencies) == 1, f"{context}: store must depend on the API exactly once")
     if artifact in AGGREGATES:
         direct = root.findall("m:dependencies/m:dependency", NS)
-        require(len(direct) == len(dependencies) == 30, f"{context}: aggregate must have exactly 30 direct runtime dependencies")
+        require(len(direct) == len(dependencies) == 31, f"{context}: aggregate must have exactly 31 direct runtime dependencies")
         seen = set()
         for dependency in direct:
             target = text(dependency, "artifactId", context)
@@ -278,7 +278,7 @@ def verify_repository(
     version = release_version(version)
     runtimes = discover_runtimes(runtime_root)
     expected = COMPONENT_PUBLICATIONS | AGGREGATES | set(runtimes)
-    require(len(expected) == 35, "Expected exactly 35 publications")
+    require(len(expected) == 36, "Expected exactly 36 publications")
     repository = Path(repository).absolute()
     require(repository.is_dir(), f"Missing isolated Maven repository: {repository}")
     group_root = repository / "dev" / "s7a"

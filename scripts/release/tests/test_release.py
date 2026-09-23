@@ -337,11 +337,11 @@ class CiTests(IsolatedTests):
         self.assertIn("actions/runs/10/jobs?filter=latest", github.request.call_args_list[1].args[0])
         self.assert_no_writes(github)
 
-    def test_all_current_thirty_runtime_jobs_are_required(self):
+    def test_all_current_thirty_one_runtime_jobs_are_required(self):
         runtimes = release.runtime_names()
-        self.assertEqual(30, len(runtimes))
+        self.assertEqual(31, len(runtimes))
         jobs = workflow_jobs(runtimes)
-        self.assertEqual(31, len(jobs))
+        self.assertEqual(32, len(jobs))
         self.assertEqual("10", release.successful_ci(self.configured_github(jobs=jobs), SHA, runtimes))
         with self.assertRaisesRegex(release.ReleaseError, "Missing or unsuccessful CI job"):
             release.successful_ci(self.configured_github(jobs=jobs[:-1]), SHA, runtimes)

@@ -9,7 +9,7 @@ Ordinary `screenshotTest<version>` tasks fail for missing or different baselines
 rewrite them. To intentionally regenerate a version after reviewing a UI change:
 
 ```sh
-xvfb-run -a -s '-screen 0 1280x720x24' ./gradlew :game-test:screenshotTest26_2 -PupdateGameTestScreenshots=true
+xvfb-run -a -s '-screen 0 1280x720x24' ./gradlew :game-test:screenshotTest26_3 -PupdateGameTestScreenshots=true
 ```
 
 The update first requires all four real captures to pass the advancement-content checks.

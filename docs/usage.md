@@ -150,7 +150,7 @@ Persistent data storage using SQLite with [SQLite JDBC](https://central.sonatype
 ```kotlin
 // Add dependency to your build.gradle.kts
 dependencies {
-    implementation("dev.s7a:ktAdvancements-store-sqlite:1.0.0")
+    implementation("dev.s7a:ktAdvancements-store-sqlite:1.0.1")
 
     // SQLite JDBC driver is bundled with Spigot by default
     // Install if you need a different version
@@ -178,7 +178,7 @@ Persistent data storage using MySQL with [MySQL Connector/J](https://central.son
 ```kotlin
 // Add dependency to your build.gradle.kts
 dependencies {
-    implementation("dev.s7a:ktAdvancements-store-mysql:1.0.0")
+    implementation("dev.s7a:ktAdvancements-store-mysql:1.0.1")
     implementation("com.mysql:mysql-connector-j:{VERSION}")
 }
 ```

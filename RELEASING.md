@@ -32,7 +32,7 @@ Missing secrets stop the workflow **before** a version tag is reserved or anythi
 
 ## Prepare a release PR
 
-1. Set the stable version in the root `build.gradle.kts` (for example, `1.0.0`). All 35 publications
+1. Set the stable version in the root `build.gradle.kts` (for example, `1.0.1`). All 36 publications
    inherit it; do not change Paper/Spigot's upstream `SNAPSHOT` dependency versions.
 2. Update every ktAdvancements dependency example in `README.md`, `docs/runtimes.md`, `docs/usage.md`, and
    `skills/ktadvancements/references/ktadvancements-reference.md`. Stable examples use `mavenCentral()`.
@@ -58,7 +58,7 @@ the `Stage signed release publications` step of `.github/workflows/game-test.yml
 # Start with a fresh build/release-repository so previous versions cannot mask missing output.
 ./gradlew publishAllPublicationsToReleaseValidationRepository --no-daemon
 python3 -B scripts/release/verify_publications.py \
-  --repository build/release-repository --version 1.0.0 --require-signatures
+  --repository build/release-repository --version 1.0.1 --require-signatures
 python3 -B scripts/release/release.py verify-signatures
 ```
 
@@ -77,14 +77,14 @@ those signatures cryptographically using the isolated GPG keyring. Never use a p
 3. A separate fresh job checks out the exact tested SHA, builds and validates all signed publications
    again, and confirms that Central has none of this version's POMs. It then reserves `v<version>`
    at that SHA. **The workflow never moves, replaces, or deletes a version tag.**
-4. Vanniktech's base publishing plugin uploads the 35 publications in **one deployment** and waits
+4. Vanniktech's base publishing plugin uploads the 36 publications in **one deployment** and waits
    for `PUBLISHED`, not just `VALIDATED`. The POM SCM tag records the exact release commit.
 5. The workflow waits up to 30 minutes for every expected POM, JAR, Gradle metadata file, and detached
    signature to be publicly downloadable. It revalidates their structure, commit identity, and signatures.
 6. Only then does it create the non-draft, non-prerelease GitHub Release from `CHANGELOG.md`.
 
-The 35 publications are the API, SQLite/MySQL stores, 30 version runtimes, and two POM-only aggregates.
-The 33 binary publications include sources and Dokka Javadoc. Legacy runtimes retain both the
+The 36 publications are the API, SQLite/MySQL stores, 31 version runtimes, and two POM-only aggregates.
+The 34 binary publications include sources and Dokka Javadoc. Legacy runtimes retain both the
 reobfuscated main JAR and `mojang-mapped` JAR; 26.x runtimes keep their normal unobfuscated JAR.
 The example, game-test plugin, server/client software, and test screenshots are not Maven publications.
 

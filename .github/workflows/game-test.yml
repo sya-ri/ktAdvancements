@@ -239,7 +239,7 @@ jobs:
             25
 
       - name: Restore Gradle build dependencies from the compile job
-        # Restore only: avoid 30 redundant uploads and cache eviction.
+        # Restore only: avoid 31 redundant uploads and cache eviction.
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           key: ${{ needs.compile.outputs.gradle-cache-key }}
@@ -273,7 +273,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y \
             python3 xdotool xvfb xauth \
-            libgl1 libgl1-mesa-dri libglx-mesa0 libopenal1 \
+            libgl1 libgl1-mesa-dri libglx-mesa0 libegl1 libopenal1 \
             libxrandr2 libxinerama1 libxcursor1 libxi6
 
       - name: Run packet tests and compare all four screenshots with committed baselines
