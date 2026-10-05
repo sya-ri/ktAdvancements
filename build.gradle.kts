@@ -5,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
 }
 
-version = "1.0.1"
+version = "1.0.2"
 
 allprojects {
     repositories {

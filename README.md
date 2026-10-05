@@ -38,12 +38,12 @@ repositories {
 }
 
 dependencies {
-    implementation("dev.s7a:ktAdvancements-api:1.0.1")
+    implementation("dev.s7a:ktAdvancements-api:1.0.2")
     // Spigot (all supported versions), or Paper through 1.20.4.
-    implementation("dev.s7a:ktAdvancements-runtime:1.0.1")
+    implementation("dev.s7a:ktAdvancements-runtime:1.0.2")
 
     // Add any of the following store implementations as needed
-    // implementation("dev.s7a:ktAdvancements-store-XXX:1.0.1")
+    // implementation("dev.s7a:ktAdvancements-store-XXX:1.0.2")
 }
 ```
 

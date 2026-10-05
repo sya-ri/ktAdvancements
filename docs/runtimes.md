@@ -6,10 +6,10 @@ This library provides multiple runtime options to suit different needs. For more
 Use this if you need to support multiple Minecraft versions:
 ```kotlin
 // Choose ONE: Spigot-mapped through 1.21.11; unobfuscated from 26.1 onward
-implementation("dev.s7a:ktAdvancements-runtime:1.0.1")
+implementation("dev.s7a:ktAdvancements-runtime:1.0.2")
 
 // OR Mojang-mapped through 1.21.11; the same unobfuscated artifacts from 26.1 onward
-implementation("dev.s7a:ktAdvancements-runtime-mojang:1.0.1")
+implementation("dev.s7a:ktAdvancements-runtime-mojang:1.0.2")
 ```
 
 For Paper 1.20.5+, use the Mojang-mapped aggregate and declare the namespace in your final plugin JAR.
@@ -20,15 +20,15 @@ see [Mojang-mapped vs Spigot-mapped](#mojang-mapped-vs-spigot-mapped) below.
 Use this if you only need to support a specific Minecraft version:
 ```kotlin
 // For Spigot/Paper plugins up to 1.21.11
-implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.1")
+implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.2")
 
 // For Paper plugins
-implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.1:mojang-mapped")
+implementation("dev.s7a:ktAdvancements-runtime-v1_17_1:1.0.2:mojang-mapped")
 ```
 
 For Minecraft `26.1+`, Spigot and Paper use the same normal unobfuscated runtime artifact:
 ```kotlin
-implementation("dev.s7a:ktAdvancements-runtime-v26_3:1.0.1")
+implementation("dev.s7a:ktAdvancements-runtime-v26_3:1.0.2")
 ```
 
 ### Supported versions
@@ -53,7 +53,7 @@ If your target version is not supported, you can create your own runtime:
 1. Add `ktAdvancements-api` as a dependency:
 ```kotlin
 dependencies {
-    implementation("dev.s7a:ktAdvancements-api:1.0.1")
+    implementation("dev.s7a:ktAdvancements-api:1.0.2")
 }
 ```
 

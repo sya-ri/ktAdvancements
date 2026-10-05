@@ -82,12 +82,52 @@ internal class AdvancementPacketGameTest(
             expectedProgress = emptyMap(),
         )
 
+        advancements.showAll(player)
+        validatePacket(
+            takePacket(),
+            expectedReset = true,
+            expectedAdded = setOf(TestAdvancement.Root, TestAdvancement.Progress),
+            expectedRemoved = setOf(TestAdvancement.Hidden),
+            expectedProgress = mapOf(TestAdvancement.Root to 1, TestAdvancement.Progress to 9),
+        )
+
+        check(advancements.grant(player, TestAdvancement.Progress, step = 1))
+        validatePacket(
+            takePacket(),
+            expectedReset = false,
+            expectedAdded = setOf(TestAdvancement.Progress),
+            expectedProgress = mapOf(TestAdvancement.Progress to 10),
+        )
+        advancements.showAll(player)
+        validatePacket(
+            takePacket(),
+            expectedReset = true,
+            expectedAdded = setOf(TestAdvancement.Root, TestAdvancement.Progress),
+            expectedRemoved = setOf(TestAdvancement.Hidden),
+            expectedProgress = mapOf(TestAdvancement.Root to 1, TestAdvancement.Progress to 10),
+        )
+        check(advancements.revoke(player, TestAdvancement.Root))
+        validatePacket(
+            takePacket(),
+            expectedReset = false,
+            expectedAdded = setOf(TestAdvancement.Root),
+            expectedProgress = mapOf(TestAdvancement.Root to 0),
+        )
+        check(advancements.grant(player, TestAdvancement.Root))
+        validatePacket(
+            takePacket(),
+            expectedReset = false,
+            expectedAdded = setOf(TestAdvancement.Root),
+            expectedProgress = mapOf(TestAdvancement.Root to 1),
+        )
+
         check(capturedPackets.isEmpty()) { "Unexpected extra packets: ${capturedPackets.size}" }
         return Properties().apply {
             setProperty("status", "passed")
             setProperty("runtime", runtimeName())
             setProperty("progress", "0/10,3/10,10/10,9/10")
             setProperty("visibility", "hidden,visible,hidden")
+            setProperty("notifications", "completion-only,no-reset-replay,showToast-respected")
         }
     }
 
@@ -176,8 +216,11 @@ internal class AdvancementPacketGameTest(
             "Expected reset=$expectedReset, got $reset from ${packet.javaClass.name}"
         }
         val remainingFlags = booleanValues.toMutableList()
-        check(remainingFlags.remove(reset) && remainingFlags.none { it }) {
-            "Expected non-reset packet flags to be false, got $booleanValues from ${packet.javaClass.name}"
+        val expectedNotification = !expectedReset && expectedProgress.any { (goal, count) ->
+            goal.display.showToast && count >= goal.requirement
+        }
+        check(remainingFlags.remove(reset) && remainingFlags.all { it == expectedNotification }) {
+            "Expected notification=$expectedNotification, got $booleanValues from ${packet.javaClass.name}"
         }
 
         val mapFields =

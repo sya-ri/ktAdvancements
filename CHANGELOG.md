@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.2
+
+### Fixed
+
+- Enable advancement completion notifications on Minecraft 1.21.5 and later when `showToast` is enabled. Partial progress, revoked progress and tree resets do not request notifications.
+- Keep initial and reconnect tree synchronization silent, including advancements that are already complete.
+
 ## v1.0.1
 
 ### Added
