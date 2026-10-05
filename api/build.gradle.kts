@@ -7,6 +7,14 @@ plugins {
 
 dependencies {
     compileOnly(libs.spigot.api)
+    testImplementation(libs.spigot.api)
+    testImplementation(libs.kotest.runner)
+    testImplementation(libs.kotest.assertions)
+    testImplementation(libs.mockito.core)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 val sourceJar =
