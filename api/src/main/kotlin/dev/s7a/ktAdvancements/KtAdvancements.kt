@@ -1,10 +1,7 @@
 package dev.s7a.ktAdvancements
 
 import dev.s7a.ktAdvancements.runtime.KtAdvancementRuntime
-import org.bukkit.Bukkit
 import org.bukkit.entity.Player
-import java.util.logging.Level
-import java.util.logging.Logger
 
 /**
  * Main class for the advancement system
@@ -21,29 +18,7 @@ class KtAdvancements<T : KtAdvancement<T>, S : KtAdvancementStore<T>>(
     val store: S,
     runtime: KtAdvancementRuntime? = null,
 ) {
-    private val runtime: KtAdvancementRuntime
-
-    init {
-        if (runtime != null) {
-            this.runtime = runtime
-        } else {
-            val version = Bukkit.getBukkitVersion().runtimeVersion()
-            try {
-                val name = "v" + version.replace('.', '_')
-                val clazz = Class.forName("${KtAdvancementRuntime::class.java.packageName}.$name.KtAdvancementRuntimeImpl")
-                this.runtime = clazz.getConstructor().newInstance() as KtAdvancementRuntime
-                Logger.getLogger("KtAdvancements").log(Level.INFO, "Use KtAdvancementRuntime: $name")
-            } catch (ex: Exception) {
-                throw RuntimeException("Not found runtime: $version", ex)
-            }
-        }
-    }
-
-    private fun String.runtimeVersion() =
-        substringBefore('-')
-            .split('.')
-            .takeWhile { it.all(Char::isDigit) }
-            .joinToString(".")
+    private val runtime = runtime ?: KtAdvancementRuntime.resolve()
 
     /**
      * Gets all advancements

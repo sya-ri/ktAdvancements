@@ -3,6 +3,7 @@ package dev.s7a.ktAdvancements.gametest
 import dev.s7a.ktAdvancements.KtAdvancement
 import dev.s7a.ktAdvancements.KtAdvancementStore
 import dev.s7a.ktAdvancements.KtAdvancements
+import dev.s7a.ktAdvancements.runtime.KtAdvancementRuntime
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.mockito.Answers
@@ -32,6 +33,20 @@ internal class AdvancementPacketGameTest(
     fun run(): Properties {
         validateDefinitions()
         val player = createMockPlayer()
+        val resolved = KtAdvancementRuntime.resolve()
+        check(resolved.javaClass.name == runtimeName())
+        resolved.sendPacket(
+            player,
+            reset = false,
+            advancements = mapOf(TestAdvancement.Progress to 3),
+            removed = emptySet(),
+        )
+        validatePacket(
+            takePacket(),
+            expectedReset = false,
+            expectedAdded = setOf(TestAdvancement.Progress),
+            expectedProgress = mapOf(TestAdvancement.Progress to 3),
+        )
 
         advancements.showAll(player)
         validatePacket(
@@ -124,6 +139,7 @@ internal class AdvancementPacketGameTest(
         check(capturedPackets.isEmpty()) { "Unexpected extra packets: ${capturedPackets.size}" }
         return Properties().apply {
             setProperty("status", "passed")
+            setProperty("publicRuntimeResolution", "same-runtime,composition-packet")
             setProperty("runtime", runtimeName())
             setProperty("progress", "0/10,3/10,10/10,9/10")
             setProperty("visibility", "hidden,visible,hidden")

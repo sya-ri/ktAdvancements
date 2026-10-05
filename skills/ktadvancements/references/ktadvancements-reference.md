@@ -22,17 +22,17 @@ repositories {
 }
 
 dependencies {
-    implementation("dev.s7a:ktAdvancements-api:1.0.2")
+    implementation("dev.s7a:ktAdvancements-api:1.0.3")
     // Spigot (all supported versions), or Paper through 1.20.4.
-    implementation("dev.s7a:ktAdvancements-runtime:1.0.2")
+    implementation("dev.s7a:ktAdvancements-runtime:1.0.3")
 }
 ```
 
 Optional stores:
 
 ```kotlin
-implementation("dev.s7a:ktAdvancements-store-sqlite:1.0.2")
-implementation("dev.s7a:ktAdvancements-store-mysql:1.0.2")
+implementation("dev.s7a:ktAdvancements-store-sqlite:1.0.3")
+implementation("dev.s7a:ktAdvancements-store-mysql:1.0.3")
 ```
 
 ## Runtime selection
@@ -60,9 +60,9 @@ Use version-specific artifacts when the plugin only targets one server line or w
 Examples:
 
 ```kotlin
-implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.2")
+implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.3")
 // Use this classifier only through Minecraft 1.21.11.
-implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.2:mojang-mapped")
+implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.3:mojang-mapped")
 ```
 
 ### Version support boundary
@@ -96,10 +96,10 @@ class AdvancementView(private val runtime: KtAdvancementRuntime) {
 }
 
 // Select the official implementation at the application composition root.
-val view = AdvancementView(dev.s7a.ktAdvancements.runtime.v26_3.KtAdvancementRuntimeImpl())
+val view = AdvancementView(KtAdvancementRuntime.resolve())
 ```
 
-Select the runtime matching the target server and inject it through the project's DI setup. For the usual store-backed API, KtAdvancements already accepts the runtime in its constructor.
+Resolve once at startup with `KtAdvancementRuntime.resolve()` and inject the result through the project's DI setup. The resolver chooses only from runtime artifacts already on the classpath and reports a missing or unconstructable runtime with `RuntimeException`; it does not download dependencies or fall back to another version. For the usual store-backed API, KtAdvancements already accepts the runtime in its constructor.
 
 From 1.0.2, modern runtimes request notifications only for non-reset updates containing a completed advancement with display.showToast enabled. Tree resets remain silent, even for completed goals. A feature that sends reconnect snapshots without reset should set showToast to false for those snapshots. For plugin-specific first-completion behavior, calculate showToast before calling the official runtime; do not send a second custom notification packet.
 

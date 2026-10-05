@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.3
+
+### Added
+
+- `KtAdvancementRuntime.resolve()` selects the official runtime for the running server and returns it for dependency injection or composition. It is callable from Kotlin and Java and uses the same selection as the default `KtAdvancements` constructor.
+- Keep the appropriate runtime artifact on the classpath. Resolution does not download dependencies or fall back to a different version, and preserves the existing missing-runtime error contract.
+
 ## v1.0.2
 
 ### Fixed
