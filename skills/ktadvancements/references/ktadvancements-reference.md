@@ -22,17 +22,17 @@ repositories {
 }
 
 dependencies {
-    implementation("dev.s7a:ktAdvancements-api:1.0.1")
+    implementation("dev.s7a:ktAdvancements-api:1.0.2")
     // Spigot (all supported versions), or Paper through 1.20.4.
-    implementation("dev.s7a:ktAdvancements-runtime:1.0.1")
+    implementation("dev.s7a:ktAdvancements-runtime:1.0.2")
 }
 ```
 
 Optional stores:
 
 ```kotlin
-implementation("dev.s7a:ktAdvancements-store-sqlite:1.0.1")
-implementation("dev.s7a:ktAdvancements-store-mysql:1.0.1")
+implementation("dev.s7a:ktAdvancements-store-sqlite:1.0.2")
+implementation("dev.s7a:ktAdvancements-store-mysql:1.0.2")
 ```
 
 ## Runtime selection
@@ -60,9 +60,9 @@ Use version-specific artifacts when the plugin only targets one server line or w
 Examples:
 
 ```kotlin
-implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.1")
+implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.2")
 // Use this classifier only through Minecraft 1.21.11.
-implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.1:mojang-mapped")
+implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.2:mojang-mapped")
 ```
 
 ### Version support boundary
@@ -73,6 +73,37 @@ implementation("dev.s7a:ktAdvancements-runtime-vX_Y_Z:1.0.1:mojang-mapped")
 - Starting at Minecraft 26.1, select the normal unobfuscated artifact without a classifier.
 
 When in doubt, describe the mappings and classifier explicitly rather than extrapolating from older versions.
+
+### Compose an official runtime
+
+When a feature owns its own dynamic display snapshots, inject an official runtime as a collaborator. Keep game-specific progress, layout, refresh and first-completion policy in the feature; let the runtime translate and send packets. Do not subclass a version runtime or duplicate its packet construction.
+
+```kotlin
+/**
+ * Delegates display snapshots to the injected official runtime.
+ */
+class AdvancementView(private val runtime: KtAdvancementRuntime) {
+    /**
+     * Sends changed displays and removed identifiers without resetting the existing tree.
+     */
+    fun update(
+        player: Player,
+        values: Map<KtAdvancement<*>, Int>,
+        removed: Set<NamespacedKey> = emptySet(),
+    ) {
+        runtime.sendPacket(player, reset = false, advancements = values, removed = removed)
+    }
+}
+
+// Select the official implementation at the application composition root.
+val view = AdvancementView(dev.s7a.ktAdvancements.runtime.v26_3.KtAdvancementRuntimeImpl())
+```
+
+Select the runtime matching the target server and inject it through the project's DI setup. For the usual store-backed API, KtAdvancements already accepts the runtime in its constructor.
+
+From 1.0.2, modern runtimes request notifications only for non-reset updates containing a completed advancement with display.showToast enabled. Tree resets remain silent, even for completed goals. A feature that sends reconnect snapshots without reset should set showToast to false for those snapshots. For plugin-specific first-completion behavior, calculate showToast before calling the official runtime; do not send a second custom notification packet.
+
+When an official runtime has a defect, prefer fixing that runtime upstream. Use a custom runtime only for a missing server version or an intentionally different protocol implementation.
 
 ### Custom runtime
 

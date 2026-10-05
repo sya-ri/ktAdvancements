@@ -64,6 +64,7 @@ internal enum class TestAdvancement(
                 title = title,
                 description = description,
                 background = NamespacedKey.minecraft("textures/gui/advancements/backgrounds/adventure.png"),
+                showToast = false,
             )
         } else {
             KtAdvancement.Display(

@@ -37,7 +37,7 @@ class KtAdvancementRuntimeImpl : KtAdvancementRuntime {
                 advancements.keys.map { AdvancementHolder(it.id.location(), it.convert()) },
                 removed.map { it.location() }.toSet(),
                 advancements.map { it.key.id.location() to it.key.progress(it.value) }.toMap(),
-                false,
+                !reset && advancements.any { (goal, count) -> goal.display.showToast && count >= goal.requirement },
             ),
         )
     }

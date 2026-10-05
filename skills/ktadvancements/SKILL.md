@@ -50,7 +50,7 @@ Use this skill when the task involves:
 - Keep version advice explicit and grounded in the repository's current runtime set.
 - Do not assume every supported Minecraft version uses the same mappings or classifier strategy.
 - When a built-in store does not fit, implement `KtAdvancementStore<T>` instead of wrapping unrelated mutable state ad hoc.
-- When a built-in runtime does not fit, either add a version-specific runtime module or inject a custom `KtAdvancementRuntime`.
+- Prefer composition: inject an official `KtAdvancementRuntime` into features that manage dynamic display snapshots. Keep game policy in the feature and packet construction/sending in the runtime. Fix official-runtime defects upstream instead of duplicating packet code. Use a custom runtime only for an unsupported version or an intentionally different implementation.
 - When custom visibility is required, implement `KtAdvancement.Visibility` rather than adding ad hoc checks around packet sending.
 - When persistence is required, use a store implementation instead of plugin-global mutable maps.
 
